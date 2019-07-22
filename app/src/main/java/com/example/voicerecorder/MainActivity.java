@@ -20,13 +20,19 @@ import android.widget.Toast;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.snackbar.Snackbar;
 
+import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.Array;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
 
 public class MainActivity extends AppCompatActivity {
 
 
-    private static final String TAG = "recorder";
+    private static final String TAG = "Notes";
     private static final int REQ_PERMS = 2000;
 
     private boolean isRecording = false;
@@ -34,6 +40,7 @@ public class MainActivity extends AppCompatActivity {
 
 
     private MediaRecorder recorder;
+
     private FloatingActionButton newRecordingBtn;
 
     @Override
@@ -42,6 +49,9 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         //initialise media recorder
         recorder = new MediaRecorder();
+
+
+
         // initialise fab and disable it until the app is ready to record
         newRecordingBtn = findViewById(R.id.new_recording_fab);
         enableNewRecordingBtn(false);
@@ -58,10 +68,52 @@ public class MainActivity extends AppCompatActivity {
 
 
         newRecordingBtn.setOnClickListener(view -> {
-            isRecording = !isRecording;
+            if(readyToRecord) {
+                //change UI of FAB
+                isRecording = !isRecording;
+                if (isRecording) newRecordingBtn.setImageDrawable(getDrawable(R.drawable.ic_mic_off_white_40dp));
+                else newRecordingBtn.setImageDrawable(getDrawable(R.drawable.ic_mic_white_40dp));
 
-            if(isRecording) newRecordingBtn.setImageDrawable(getDrawable(R.drawable.ic_mic_off_white_40dp));
-            else newRecordingBtn.setImageDrawable(getDrawable(R.drawable.ic_mic_white_40dp));
+                if(isRecording){
+                    //create name of note file based on current time
+                    Calendar cal = Calendar.getInstance();
+                    String time = cal.get(Calendar.YEAR) + "-" + cal.get(Calendar.MONTH) + "-" + cal.get(Calendar.DAY_OF_MONTH) + ":" + cal.get(Calendar.HOUR_OF_DAY) + "-" + cal.get(Calendar.MINUTE);
+                    String filename = "Note " + time + ".3gp";
+
+                    if(isExternalStorageWritable()){
+                        //if the voice notes directory doesn't exist, create it
+                        if(!voiceNotesDirExists()) {
+                            createVoiceNotesDir();
+                            Log.d(TAG, "onCreate: Notes Dir created");
+                        }
+                        else Log.d(TAG, "onCreate: Notes Dir exists");
+
+                        //complete path of voice note file
+                        String recordingPath = getVoiceNotesDir().getAbsolutePath() + "/" + filename;
+                        //start recording audio and show a toast
+                        try {
+                            recorder.setAudioSource(MediaRecorder.AudioSource.VOICE_RECOGNITION);
+                            recorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
+                            recorder.setAudioEncoder(MediaRecorder.OutputFormat.AMR_NB);
+                            recorder.setOutputFile(recordingPath);
+                            recorder.prepare();
+                            recorder.start();
+                            Toast.makeText(getApplicationContext(),"Recording Started",Toast.LENGTH_LONG).show();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                            Toast.makeText(getApplicationContext(),"Error while trying to record audio",Toast.LENGTH_LONG).show();
+                        }
+
+                    }
+
+                }
+                //stop audio recording and show a toast
+                else{
+                    recorder.stop();
+                    recorder.release();
+                    Toast.makeText(getApplicationContext(),"Recording Stopped",Toast.LENGTH_LONG).show();
+                }
+            }
         });
 
     }
@@ -153,6 +205,25 @@ public class MainActivity extends AppCompatActivity {
                 ActivityCompat.requestPermissions(this, permissions.toArray(new String[]{}), REQ_PERMS);
             }
         }
+    }
+    //check if voice notes directory exists
+    private boolean voiceNotesDirExists(){
+        File f = getVoiceNotesDir();
+        //File f = new File(Environment.getExternalStorageDirectory().getPath() + "/Voice Notes");
+        Log.d(TAG, "createVoiceNotesDir: " + f.getAbsolutePath());
+        if(f != null) return f.exists() && f.isDirectory();
+        return false;
+    }
+    //create voice notes directory
+    private boolean createVoiceNotesDir(){
+        File f = getVoiceNotesDir();
+        //File f = new File(Environment.getExternalStorageDirectory().getPath() + "/Voice Notes");
+        Log.d(TAG, "createVoiceNotesDir: " + f.getAbsolutePath());
+        return f.mkdirs();
+    }
+    //get the directory where voice notes are stored
+    private File getVoiceNotesDir(){
+        return new File(getExternalFilesDir(null),"Voice Notes");
     }
 
 }
