@@ -46,6 +46,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String CHANNEL_ID = "VOICE_NOTES";
     private static final int notificationId = 2500;
 
+    //to check if the app is currently recording
     private boolean isRecording = false;
     //to check whether app has all necessary permissions, and storage is accessible
     private boolean readyToRecord = false;
@@ -257,13 +258,8 @@ public class MainActivity extends AppCompatActivity {
 
     //check if app has all the necessary permissions
     private boolean hasAllPermissions(){
-        if( ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED &&
-            ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED){
-            return true;
-        }
-        else{
-            return false;
-        }
+        return (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED &&
+                ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED);
     }
 
     //request any permissions that have not been granted
