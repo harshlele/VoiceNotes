@@ -19,9 +19,9 @@ import android.media.MediaRecorder;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
 import android.util.Log;
 import android.view.View;
-import android.widget.FrameLayout;
 import android.widget.Toast;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
@@ -29,12 +29,11 @@ import com.google.android.material.snackbar.Snackbar;
 
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Array;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.Date;
+import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -53,6 +52,15 @@ public class MainActivity extends AppCompatActivity {
     //to check whether the MediaRecorder object is in the correct state and ready to record
     private boolean isRecorderReady = false;
 
+
+    //calendar to hold the start time
+    private Calendar recordingStartTime;
+    //thread that will record the time passed since recording was started, and a handler to update the notification from the thread
+    private Thread recordingTimeUpdateThread;
+    private Handler recordingTimeHandler;
+    //filename of the current ongoing recording
+    private String currentRecordingName = "";
+
     private MediaRecorder recorder;
 
     private FloatingActionButton newRecordingBtn;
@@ -63,11 +71,13 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         //initialise media recorder
         recorder = new MediaRecorder();
+        //initialise handler
+        recordingTimeHandler = new Handler();
 
         // initialise fab and disable it until the app is ready to record
         newRecordingBtn = findViewById(R.id.new_recording_fab);
         enableNewRecordingBtn(false);
-        //create a notification channel for Android O and above
+        //create a notification channel for Android 8(O) and above
         createNotificationChannel();
 
         //if the app has all needed permissions, enable the FAB and setup the recorder, else request permissions
@@ -95,7 +105,7 @@ public class MainActivity extends AppCompatActivity {
                 if(isRecording){
                     //create name of note file based on current time
                     Calendar cal = Calendar.getInstance();
-                    String time = cal.get(Calendar.MONTH) + "-" + cal.get(Calendar.DAY_OF_MONTH) + ":" + cal.get(Calendar.HOUR_OF_DAY) + "-" + cal.get(Calendar.MINUTE) + "-" + cal.get(Calendar.SECOND);
+                    String time = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(cal.getTime());
                     String filename = "Note " + time + ".3gp";
 
                     if(isExternalStorageWritable()){
@@ -115,13 +125,23 @@ public class MainActivity extends AppCompatActivity {
                         try {
                             //check if the recorder is in the correct state to record
                             if(!isRecorderReady) setupRecorder();
+
                             //start recording
                             recorder.setOutputFile(recordingPath);
                             recorder.prepare();
                             recorder.start();
+
+                            //record current time to calculate time passed since recording began
+                            recordingStartTime = Calendar.getInstance();
+
+                            //show a notification for the recording
+                            showNotification(filename,"Recording Note");
+                            currentRecordingName = filename;
+
+                            //start a thread to record the time passed since recording began
+                            startRecordingTimeThread();
+                            //show a toast to notify the user
                             Toast.makeText(getApplicationContext(),"Recording Started",Toast.LENGTH_SHORT).show();
-                            //show a notification for the
-                            showNotification(filename);
 
                         } catch (IOException e) {
                             e.printStackTrace();
@@ -133,10 +153,15 @@ public class MainActivity extends AppCompatActivity {
                 }
                 //stop audio recording and show a toast
                 else{
+                    //interrupt the time recording thread
+                    recordingTimeUpdateThread.interrupt();
                     //stopRecording(false);
+
                     recorder.stop();
                     recorder.reset();
                     isRecorderReady = false;
+                    currentRecordingName = "";
+
                     //make a toast, and remove the notification
                     Toast.makeText(getApplicationContext(),"Recording Stopped",Toast.LENGTH_SHORT).show();
                     NotificationManagerCompat.from(this).cancel(notificationId);
@@ -151,31 +176,35 @@ public class MainActivity extends AppCompatActivity {
             recorder.setAudioSource(MediaRecorder.AudioSource.VOICE_RECOGNITION);
             recorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
             recorder.setAudioEncoder(MediaRecorder.OutputFormat.AMR_NB);
+            isRecorderReady = true;
     }
 
     //show a persistent notification when recording is going on
-    private void showNotification(String recordingName){
+    private void showNotification(String recordingName,String recordingText){
         // Create an empty intent so tapping the notification does nothing
         Intent emptyIntent = new Intent();
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, emptyIntent, PendingIntent.FLAG_UPDATE_CURRENT);
 
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
+
+        NotificationCompat.Builder notifBuilder = new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_launcher_foreground)
                 .setContentTitle(recordingName)
-                .setContentText("Recording Note")
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setContentText(recordingText)
+                .setPriority(NotificationCompat.PRIORITY_LOW) //low priority so the duration updates don't annoy the user
                 .setContentIntent(pendingIntent)
-                .setOngoing(true)                           //so it can't be dismissed while recording
-                .setAutoCancel(false);                      //so it can't be dismissed by clicking on it
+                .setOnlyAlertOnce(true)                      //alert the user only when the notification first appears, not every time it updates
+                .setOngoing(true)                            //so it can't be dismissed while recording
+                .setAutoCancel(false);                       //so it can't be dismissed by clicking on it
 
         NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
 
-        notificationManager.notify(notificationId, builder.build());
+        notificationManager.notify(notificationId, notifBuilder.build());
 
 
     }
 
     //stop the audio recording
+    // TODO: correct this
     private void stopRecording(boolean updateIsRecording){
         //if the user presses on the stop button in the notification, then isRecording hasn't been set to false yet, so set it to false here
         if(updateIsRecording){
@@ -313,6 +342,44 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     }
+
+    //create and start a thread to record and display the time passed since recording began
+    private void startRecordingTimeThread(){
+        recordingTimeUpdateThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                //isRecording has to be checked because the thread doesnt stop even if .interrupt() is called >.<
+                while(!Thread.currentThread().isInterrupted() && isRecording){
+                    Log.d(TAG, "run: thread running");
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) { e.printStackTrace();}
+
+                    if(isRecording) {
+                        //get the milliseconds lapsed since recording began
+                        Calendar now = Calendar.getInstance();
+                        long time = now.getTimeInMillis() - recordingStartTime.getTimeInMillis();
+                        //convert it into mins and secs
+                        String duration = String.format(Locale.US,"%02d:%02d",
+                                TimeUnit.MILLISECONDS.toMinutes(time),
+                                TimeUnit.MILLISECONDS.toSeconds(time) - TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(time))
+                                );
+                        //use a handler to update the notification
+                        recordingTimeHandler.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                showNotification(currentRecordingName, duration);
+                            }
+                        });
+                    }
+                }
+            }
+        });
+        //start the thread
+        recordingTimeUpdateThread.start();
+
+    }
+
 
 
 }
