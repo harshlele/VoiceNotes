@@ -35,7 +35,8 @@ import java.util.Calendar;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
-public class MainActivity extends AppCompatActivity {
+
+public class MainActivity extends AppCompatActivity{
 
     //log tag
     private static final String TAG = "Notes";
@@ -377,6 +378,7 @@ public class MainActivity extends AppCompatActivity {
         });
         //start the thread
         recordingTimeUpdateThread.start();
+
 
     }
 
