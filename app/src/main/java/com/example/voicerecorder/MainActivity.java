@@ -1,12 +1,5 @@
 package com.example.voicerecorder;
 
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
-import androidx.core.app.NotificationCompat;
-import androidx.core.app.NotificationManagerCompat;
-import androidx.core.content.ContextCompat;
-
 import android.Manifest;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -15,7 +8,6 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
-import android.media.MediaRecorder;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
@@ -24,6 +16,13 @@ import android.os.Handler;
 import android.util.Log;
 import android.view.View;
 import android.widget.Toast;
+
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
+import androidx.core.content.ContextCompat;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.snackbar.Snackbar;
@@ -39,8 +38,6 @@ import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
 import edu.cmu.pocketsphinx.Assets;
-import edu.cmu.pocketsphinx.Hypothesis;
-import edu.cmu.pocketsphinx.RecognitionListener;
 import edu.cmu.pocketsphinx.SpeechRecognizer;
 import edu.cmu.pocketsphinx.SpeechRecognizerSetup;
 
@@ -71,9 +68,7 @@ public class MainActivity extends AppCompatActivity{
     //filename of the current ongoing recording
     private String currentRecordingName = "";
 
-    private MediaRecorder recorder;
-
-
+    //private MediaRecorder recorder;
     private RecordWaveTask recordTask = null;
 
     private FloatingActionButton newRecordingBtn;
@@ -85,7 +80,7 @@ public class MainActivity extends AppCompatActivity{
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         //initialise media recorder
-        recorder = new MediaRecorder();
+        //recorder = new MediaRecorder();
         //initialise handler
         recordingTimeHandler = new Handler();
 
@@ -101,7 +96,7 @@ public class MainActivity extends AppCompatActivity{
         else{
 
             if(isExternalStorageWritable()){
-                setupRecorder();
+                //setupRecorder();
                 isRecorderReady = true;
 
                 enableNewRecordingBtn(true);
@@ -205,13 +200,14 @@ public class MainActivity extends AppCompatActivity{
 
 
     //set the recorder source, output format etc so its in the correct state to record
+    /*
     private void setupRecorder(){
             recorder.setAudioSource(MediaRecorder.AudioSource.VOICE_RECOGNITION);
             recorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
             recorder.setAudioEncoder(MediaRecorder.OutputFormat.AMR_NB);
             isRecorderReady = true;
     }
-
+    */
     //show a persistent notification when recording is going on
     private void showNotification(String recordingName,String recordingText){
         // Create an empty intent so tapping the notification does nothing
@@ -243,12 +239,12 @@ public class MainActivity extends AppCompatActivity{
         if(updateIsRecording){
             isRecording = false;
         }
-
+        /*
         if(!isRecording && recorder != null) {
             recorder.stop();
             recorder.release();
         }
-
+        */
         Toast.makeText(getApplicationContext(),"Recording Stopped",Toast.LENGTH_SHORT).show();
         NotificationManagerCompat.from(this).cancel(notificationId);
     }
@@ -294,7 +290,7 @@ public class MainActivity extends AppCompatActivity{
                 //if all permissions have been granted, check if the storage is writable. If it is, enable the new recording button and setup the recorder
                 else {
                     if (isExternalStorageWritable()) {
-                        setupRecorder();
+                        //setupRecorder();
                         isRecorderReady = true;
 
                         enableNewRecordingBtn(true);
