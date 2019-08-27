@@ -33,7 +33,6 @@ import android.media.MediaRecorder;
 import android.os.AsyncTask;
 import android.os.SystemClock;
 import android.util.Log;
-import android.widget.Toast;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -42,6 +41,8 @@ import java.io.OutputStream;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+
+import static android.content.ContentValues.TAG;
 
 public class RecordWaveTask extends AsyncTask<File, Void, Object[]> {
 
@@ -100,9 +101,10 @@ public class RecordWaveTask extends AsyncTask<File, Void, Object[]> {
                 read = audioRecord.read(buffer, 0, buffer.length);
 
                 // WAVs cannot be > 4 GB due to the use of 32 bit unsigned integers.
-                if (total + read > 4294967295L) {
+                // CUSTOM: but here, max size is 1 GB.
+                if (total + read > 1073741274L) {
                     // Write as many bytes as we can before hitting the max size
-                    for (int i = 0; i < read && total <= 4294967295L; i++, total++) {
+                    for (int i = 0; i < read && total <= 1073741274L; i++, total++) {
                         wavOut.write(buffer[i]);
                     }
                     run = false;
@@ -298,7 +300,7 @@ public class RecordWaveTask extends AsyncTask<File, Void, Object[]> {
 
             } else {
                 // Error
-                Toast.makeText(ctx, throwable.getLocalizedMessage(), Toast.LENGTH_LONG).show();
+                Log.e(TAG, "onPostExecute: " + throwable.getLocalizedMessage());
             }
         }
     }
