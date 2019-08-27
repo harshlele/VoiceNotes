@@ -16,6 +16,7 @@ import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.media.MediaRecorder;
+import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
@@ -30,10 +31,18 @@ import com.google.android.material.snackbar.Snackbar;
 import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
+
+import edu.cmu.pocketsphinx.Assets;
+import edu.cmu.pocketsphinx.Hypothesis;
+import edu.cmu.pocketsphinx.RecognitionListener;
+import edu.cmu.pocketsphinx.SpeechRecognizer;
+import edu.cmu.pocketsphinx.SpeechRecognizerSetup;
 
 
 public class MainActivity extends AppCompatActivity{
@@ -64,7 +73,12 @@ public class MainActivity extends AppCompatActivity{
 
     private MediaRecorder recorder;
 
+
+    private RecordWaveTask recordTask = null;
+
     private FloatingActionButton newRecordingBtn;
+
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -107,7 +121,7 @@ public class MainActivity extends AppCompatActivity{
                     //create name of note file based on current time
                     Calendar cal = Calendar.getInstance();
                     String time = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(cal.getTime());
-                    String filename = "Note " + time + ".3gp";
+                    String filename = "Note " + time + ".wav";
 
                     if(isExternalStorageWritable()){
 
@@ -125,12 +139,14 @@ public class MainActivity extends AppCompatActivity{
                         //start recording audio and show a toast
                         try {
                             //check if the recorder is in the correct state to record
-                            if(!isRecorderReady) setupRecorder();
+                            //if(!isRecorderReady) setupRecorder();
 
                             //start recording
-                            recorder.setOutputFile(recordingPath);
-                            recorder.prepare();
-                            recorder.start();
+                            //recorder.setOutputFile(recordingPath);
+                            //recorder.prepare();
+                            //recorder.start();
+
+                            launchTask(recordingPath);
 
                             //record current time to calculate time passed since recording began
                             recordingStartTime = Calendar.getInstance();
@@ -144,7 +160,7 @@ public class MainActivity extends AppCompatActivity{
                             //show a toast to notify the user
                             Toast.makeText(getApplicationContext(),"Recording Started",Toast.LENGTH_SHORT).show();
 
-                        } catch (IOException e) {
+                        } catch (Exception e) {
                             e.printStackTrace();
                             Toast.makeText(getApplicationContext(),"Error while trying to record audio",Toast.LENGTH_LONG).show();
                         }
@@ -158,8 +174,15 @@ public class MainActivity extends AppCompatActivity{
                     recordingTimeUpdateThread.interrupt();
                     //stopRecording(false);
 
-                    recorder.stop();
-                    recorder.reset();
+                    //recorder.stop();
+                    //recorder.reset();
+
+                    if (!recordTask.isCancelled() && recordTask.getStatus() == AsyncTask.Status.RUNNING) {
+                        recordTask.cancel(false);
+                    } else {
+                        Toast.makeText(this, "Task not running.", Toast.LENGTH_SHORT).show();
+                    }
+
                     isRecorderReady = false;
                     currentRecordingName = "";
 
@@ -170,7 +193,16 @@ public class MainActivity extends AppCompatActivity{
             }
         });
 
+        setupSpeechRecogniser();
     }
+
+    private void launchTask(String wavFile) {
+        Toast.makeText(this, wavFile, Toast.LENGTH_LONG).show();
+        File f = new File(wavFile);
+        if(recordTask == null) recordTask = new RecordWaveTask(this);
+        recordTask.execute(f);
+    }
+
 
     //set the recorder source, output format etc so its in the correct state to record
     private void setupRecorder(){
@@ -382,6 +414,32 @@ public class MainActivity extends AppCompatActivity{
 
     }
 
+    private void setupSpeechRecogniser(){
+        Instant t = Instant.now();
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                Assets assets;
+                try {
+                    assets = new Assets(MainActivity.this);
+                    File assetDir = assets.syncAssets();
+                    SpeechRecognizer recognizer = SpeechRecognizerSetup.defaultSetup()
+                            .setAcousticModel(new File(assetDir, "en-us-ptm"))
+                            .setDictionary(new File(assetDir, "cmudict-en-us.dict"))
+                            // Disable this line if you don't want recognizer to save raw
+                            // audio files to app's storage
+                            //.setRawLogDir(assetsDir)
+                            .getRecognizer();
+                    //recognizer.addListener(MainActivity.this);
+
+
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                Log.d(TAG, "run: recogniser setup done in " + Duration.between(t,Instant.now()).getNano());
+            }
+        }).start();
+    }
 
 
 }
