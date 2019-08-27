@@ -4,7 +4,10 @@ import android.Manifest;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
@@ -42,7 +45,7 @@ import edu.cmu.pocketsphinx.SpeechRecognizer;
 import edu.cmu.pocketsphinx.SpeechRecognizerSetup;
 
 
-public class MainActivity extends AppCompatActivity{
+public class MainActivity extends AppCompatActivity {
 
     //log tag
     private static final String TAG = "Notes";
@@ -68,19 +71,25 @@ public class MainActivity extends AppCompatActivity{
     //filename of the current ongoing recording
     private String currentRecordingName = "";
 
-    //private MediaRecorder recorder;
+    //private MediaRecorder recorder
+
+    //AsyncTask to record audio
     private RecordWaveTask recordTask = null;
 
     private FloatingActionButton newRecordingBtn;
 
+    //Broadcast reciever to recieve messages from the notification
+    private BroadcastReceiver stopRecordingReciever;
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
         //initialise media recorder
         //recorder = new MediaRecorder();
+
         //initialise handler
         recordingTimeHandler = new Handler();
 
@@ -165,36 +174,35 @@ public class MainActivity extends AppCompatActivity{
                 }
                 //stop audio recording and show a toast
                 else{
-                    //interrupt the time recording thread
-                    recordingTimeUpdateThread.interrupt();
-                    //stopRecording(false);
-
-                    //recorder.stop();
-                    //recorder.reset();
-
-                    if (!recordTask.isCancelled() && recordTask.getStatus() == AsyncTask.Status.RUNNING) {
-                        recordTask.cancel(false);
-                    } else {
-                        Toast.makeText(this, "Task not running.", Toast.LENGTH_SHORT).show();
-                    }
-
-                    isRecorderReady = false;
-                    currentRecordingName = "";
-
-                    //make a toast, and remove the notification
-                    Toast.makeText(getApplicationContext(),"Recording Stopped",Toast.LENGTH_SHORT).show();
-                    NotificationManagerCompat.from(this).cancel(notificationId);
+                    stopRecording();
                 }
             }
         });
-
+        //setup the pocketsphinx speech recogniser
         setupSpeechRecogniser();
+
+        //setup and register the broadcast reciever to get messages from the notification
+        stopRecordingReciever = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if(intent.getBooleanExtra("recording_stop",false) == true) {
+                    isRecording = false;
+                    newRecordingBtn.setImageDrawable(getDrawable(R.drawable.ic_mic_white_40dp));
+                    stopRecording();
+                }
+            }
+        };
+
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(String.valueOf(notificationId));
+
+        registerReceiver(stopRecordingReciever,filter);
     }
 
+    //start the asynctask for recording audio
     private void launchTask(String wavFile) {
-        Toast.makeText(this, wavFile, Toast.LENGTH_LONG).show();
         File f = new File(wavFile);
-        if(recordTask == null) recordTask = new RecordWaveTask(this);
+        recordTask = new RecordWaveTask(this);
         recordTask.execute(f);
     }
 
@@ -208,11 +216,18 @@ public class MainActivity extends AppCompatActivity{
             isRecorderReady = true;
     }
     */
+
     //show a persistent notification when recording is going on
     private void showNotification(String recordingName,String recordingText){
         // Create an empty intent so tapping the notification does nothing
         Intent emptyIntent = new Intent();
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, emptyIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+
+        //create intent for the stop button
+        Intent stopRecordingIntent = new Intent(String.valueOf(notificationId));
+        stopRecordingIntent.putExtra("recording_stop",true);
+        PendingIntent stopRecordingPendingIntent =
+                PendingIntent.getBroadcast(this, 0, stopRecordingIntent, 0);
 
 
         NotificationCompat.Builder notifBuilder = new NotificationCompat.Builder(this, CHANNEL_ID)
@@ -221,9 +236,10 @@ public class MainActivity extends AppCompatActivity{
                 .setContentText(recordingText)
                 .setPriority(NotificationCompat.PRIORITY_LOW) //low priority so the duration updates don't annoy the user
                 .setContentIntent(pendingIntent)
-                .setOnlyAlertOnce(true)                      //alert the user only when the notification first appears, not every time it updates
+                .setOnlyAlertOnce(true)                       //alert the user only when the notification first appears, not every time it updates
                 .setOngoing(true)                            //so it can't be dismissed while recording
-                .setAutoCancel(false);                       //so it can't be dismissed by clicking on it
+                .setAutoCancel(false)                       //so it can't be dismissed by clicking on it
+                .addAction(R.drawable.ic_mic_off_white_40dp,"STOP",stopRecordingPendingIntent);  //add stop button and pending intent
 
         NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
 
@@ -233,20 +249,27 @@ public class MainActivity extends AppCompatActivity{
     }
 
     //stop the audio recording
-    // TODO: correct this
-    private void stopRecording(boolean updateIsRecording){
-        //if the user presses on the stop button in the notification, then isRecording hasn't been set to false yet, so set it to false here
-        if(updateIsRecording){
-            isRecording = false;
+    private void stopRecording(){
+        //interrupt the time recording thread
+        recordingTimeUpdateThread.interrupt();
+
+        //recorder.stop();
+        //recorder.reset();
+        
+        //stop the audio recording AsyncTask
+        if (!recordTask.isCancelled() && recordTask.getStatus() == AsyncTask.Status.RUNNING) {
+            recordTask.cancel(false);
+        } else {
+            Log.d(TAG, "stopRecording: TASK NOT RUNNING!");
         }
-        /*
-        if(!isRecording && recorder != null) {
-            recorder.stop();
-            recorder.release();
-        }
-        */
+
+        currentRecordingName = "";
+
+        //make a toast, and remove the notification
         Toast.makeText(getApplicationContext(),"Recording Stopped",Toast.LENGTH_SHORT).show();
         NotificationManagerCompat.from(this).cancel(notificationId);
+
+
     }
 
     //enable/disable FAB and change its color and icon
@@ -357,14 +380,13 @@ public class MainActivity extends AppCompatActivity{
     }
 
 
-    //create notification channel for Android O and above
+    //create notification channel for Android 8 and above
     //this method is called everytime the app starts
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "Voice Notes", NotificationManager.IMPORTANCE_DEFAULT);
             channel.setDescription("Persistent notification shown when note is being recorded");
-            // Register the channel with the system; you can't change the importance
-            // or other notification behaviors after this
+            // Register the channel with the system
             NotificationManager notificationManager = getSystemService(NotificationManager.class);
             if (notificationManager != null) {
                 notificationManager.createNotificationChannel(channel);
@@ -438,4 +460,9 @@ public class MainActivity extends AppCompatActivity{
     }
 
 
+    @Override
+    protected void onStop() {
+        super.onStop();
+        unregisterReceiver(stopRecordingReciever);
+    }
 }
