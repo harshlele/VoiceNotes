@@ -31,18 +31,12 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.snackbar.Snackbar;
 
 import java.io.File;
-import java.io.IOException;
 import java.text.SimpleDateFormat;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Locale;
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
-
-import edu.cmu.pocketsphinx.Assets;
-import edu.cmu.pocketsphinx.SpeechRecognizer;
-import edu.cmu.pocketsphinx.SpeechRecognizerSetup;
 
 
 public class MainActivity extends AppCompatActivity {
@@ -70,6 +64,8 @@ public class MainActivity extends AppCompatActivity {
     private Handler recordingTimeHandler;
     //filename of the current ongoing recording
     private String currentRecordingName = "";
+    //full path of current recording
+    private String recordingPath;
 
     //private MediaRecorder recorder
 
@@ -80,7 +76,6 @@ public class MainActivity extends AppCompatActivity {
 
     //Broadcast reciever to recieve messages from the notification
     private BroadcastReceiver stopRecordingReciever;
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -98,6 +93,7 @@ public class MainActivity extends AppCompatActivity {
         enableNewRecordingBtn(false);
         //create a notification channel for Android 8(O) and above
         createNotificationChannel();
+
 
         //if the app has all needed permissions, enable the FAB and setup the recorder, else request permissions
         if(!hasAllPermissions()) requestPermissions();
@@ -137,7 +133,7 @@ public class MainActivity extends AppCompatActivity {
                         else Log.d(TAG, "onCreate: Notes Dir exists");
 
                         //complete path of voice note file
-                        String recordingPath = getVoiceNotesDir().getAbsolutePath() + "/" + filename;
+                        recordingPath = getVoiceNotesDir().getAbsolutePath() + "/" + filename;
                         Log.d(TAG, "onCreate: Recording path: " + recordingPath);
 
                         //start recording audio and show a toast
@@ -175,17 +171,17 @@ public class MainActivity extends AppCompatActivity {
                 //stop audio recording and show a toast
                 else{
                     stopRecording();
+
                 }
             }
         });
-        //setup the pocketsphinx speech recogniser
-        setupSpeechRecogniser();
 
         //setup and register the broadcast reciever to get messages from the notification
         stopRecordingReciever = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
                 if(intent.getBooleanExtra("recording_stop",false) == true) {
+                    Log.d(TAG, "onReceive: got the broadcast");
                     isRecording = false;
                     newRecordingBtn.setImageDrawable(getDrawable(R.drawable.ic_mic_white_40dp));
                     stopRecording();
@@ -193,11 +189,13 @@ public class MainActivity extends AppCompatActivity {
             }
         };
 
+
         IntentFilter filter = new IntentFilter();
         filter.addAction(String.valueOf(notificationId));
 
         registerReceiver(stopRecordingReciever,filter);
     }
+
 
     //start the asynctask for recording audio
     private void launchTask(String wavFile) {
@@ -227,7 +225,7 @@ public class MainActivity extends AppCompatActivity {
         Intent stopRecordingIntent = new Intent(String.valueOf(notificationId));
         stopRecordingIntent.putExtra("recording_stop",true);
         PendingIntent stopRecordingPendingIntent =
-                PendingIntent.getBroadcast(this, 0, stopRecordingIntent, 0);
+                PendingIntent.getBroadcast(this, new Random().nextInt(Integer.MAX_VALUE), stopRecordingIntent, PendingIntent.FLAG_CANCEL_CURRENT);
 
 
         NotificationCompat.Builder notifBuilder = new NotificationCompat.Builder(this, CHANNEL_ID)
@@ -268,7 +266,6 @@ public class MainActivity extends AppCompatActivity {
         //make a toast, and remove the notification
         Toast.makeText(getApplicationContext(),"Recording Stopped",Toast.LENGTH_SHORT).show();
         NotificationManagerCompat.from(this).cancel(notificationId);
-
 
     }
 
@@ -432,37 +429,10 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    private void setupSpeechRecogniser(){
-        Instant t = Instant.now();
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                Assets assets;
-                try {
-                    assets = new Assets(MainActivity.this);
-                    File assetDir = assets.syncAssets();
-                    SpeechRecognizer recognizer = SpeechRecognizerSetup.defaultSetup()
-                            .setAcousticModel(new File(assetDir, "en-us-ptm"))
-                            .setDictionary(new File(assetDir, "cmudict-en-us.dict"))
-                            // Disable this line if you don't want recognizer to save raw
-                            // audio files to app's storage
-                            //.setRawLogDir(assetsDir)
-                            .getRecognizer();
-                    //recognizer.addListener(MainActivity.this);
-
-
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-                Log.d(TAG, "run: recogniser setup done in " + Duration.between(t,Instant.now()).getNano());
-            }
-        }).start();
-    }
-
-
     @Override
-    protected void onStop() {
-        super.onStop();
+    protected void onDestroy() {
+        super.onDestroy();
         unregisterReceiver(stopRecordingReciever);
     }
+
 }
