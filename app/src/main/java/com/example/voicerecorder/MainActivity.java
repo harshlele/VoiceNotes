@@ -232,7 +232,7 @@ public class MainActivity extends AppCompatActivity {
                 .setSmallIcon(R.drawable.ic_launcher_foreground)
                 .setContentTitle(recordingName)
                 .setContentText(recordingText)
-                .setPriority(NotificationCompat.PRIORITY_LOW) //low priority so the duration updates don't annoy the user
+                .setPriority(NotificationCompat.PRIORITY_MIN) //minimum priority so the duration updates don't annoy the user
                 .setContentIntent(pendingIntent)
                 .setOnlyAlertOnce(true)                       //alert the user only when the notification first appears, not every time it updates
                 .setOngoing(true)                            //so it can't be dismissed while recording
