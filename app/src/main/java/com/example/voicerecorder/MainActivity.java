@@ -429,9 +429,11 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    //unregister the reciever in onDestroy instead of onStop so the notification works even when app is in the background
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        NotificationManagerCompat.from(this).cancel(notificationId);
         unregisterReceiver(stopRecordingReciever);
     }
 
