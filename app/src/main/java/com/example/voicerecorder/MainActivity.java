@@ -9,8 +9,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
-import android.content.res.ColorStateList;
-import android.graphics.Color;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
@@ -18,6 +16,8 @@ import android.os.Environment;
 import android.os.Handler;
 import android.util.Log;
 import android.view.View;
+import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -27,7 +27,6 @@ import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
 import androidx.core.content.ContextCompat;
 
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.snackbar.Snackbar;
 
 import java.io.File;
@@ -71,8 +70,10 @@ public class MainActivity extends AppCompatActivity {
 
     //AsyncTask to record audio
     private RecordWaveTask recordTask = null;
+    //recording button
+    private ImageView newRecordingBtn;
 
-    private FloatingActionButton newRecordingBtn;
+    private TextView recordingNameText, recordingTimeText;
 
     //Broadcast reciever to recieve messages from the notification
     private BroadcastReceiver stopRecordingReciever;
@@ -88,9 +89,13 @@ public class MainActivity extends AppCompatActivity {
         //initialise handler
         recordingTimeHandler = new Handler();
 
-        // initialise fab and disable it until the app is ready to record
-        newRecordingBtn = findViewById(R.id.new_recording_fab);
+        // initialise record button and disable it until the app is ready to record
+        newRecordingBtn = findViewById(R.id.new_recording_btn);
         enableNewRecordingBtn(false);
+
+        recordingNameText = findViewById(R.id.recording_name);
+        recordingTimeText = findViewById(R.id.recording_time);
+
         //create a notification channel for Android 8(O) and above
         createNotificationChannel();
 
@@ -112,7 +117,7 @@ public class MainActivity extends AppCompatActivity {
 
         newRecordingBtn.setOnClickListener(view -> {
             if(readyToRecord) {
-                //change UI of FAB
+                //change UI of recording button
                 isRecording = !isRecording;
                 if (isRecording) newRecordingBtn.setImageDrawable(getDrawable(R.drawable.ic_mic_off_white_40dp));
                 else newRecordingBtn.setImageDrawable(getDrawable(R.drawable.ic_mic_white_40dp));
@@ -157,6 +162,10 @@ public class MainActivity extends AppCompatActivity {
 
                             //start a thread to record the time passed since recording began
                             startRecordingTimeThread();
+
+                            //set the recording name
+                            recordingNameText.setText(filename);
+
                             //show a toast to notify the user
                             Toast.makeText(getApplicationContext(),"Recording Started",Toast.LENGTH_SHORT).show();
 
@@ -171,7 +180,6 @@ public class MainActivity extends AppCompatActivity {
                 //stop audio recording and show a toast
                 else{
                     stopRecording();
-
                 }
             }
         });
@@ -183,7 +191,8 @@ public class MainActivity extends AppCompatActivity {
                 if(intent.getBooleanExtra("recording_stop",false) == true) {
                     Log.d(TAG, "onReceive: got the broadcast");
                     isRecording = false;
-                    newRecordingBtn.setImageDrawable(getDrawable(R.drawable.ic_mic_white_40dp));
+                    //newRecordingBtn.setImageDrawable(getDrawable(R.drawable.ic_mic_white_40dp));
+                    enableNewRecordingBtn(true);
                     stopRecording();
                 }
             }
@@ -253,7 +262,7 @@ public class MainActivity extends AppCompatActivity {
 
         //recorder.stop();
         //recorder.reset();
-        
+
         //stop the audio recording AsyncTask
         if (!recordTask.isCancelled() && recordTask.getStatus() == AsyncTask.Status.RUNNING) {
             recordTask.cancel(false);
@@ -269,16 +278,16 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    //enable/disable FAB and change its color and icon
+    //enable/disable recording button and change its color and icon
     private void enableNewRecordingBtn(boolean enable){
         newRecordingBtn.setEnabled(enable);
         if(!enable) {
             newRecordingBtn.setImageDrawable(getDrawable(R.drawable.ic_mic_off_white_40dp));
-            newRecordingBtn.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
+            //newRecordingBtn.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
         }
         else{
             newRecordingBtn.setImageDrawable(getDrawable(R.drawable.ic_mic_white_40dp));
-            newRecordingBtn.setBackgroundTintList(ColorStateList.valueOf(getResources().getColor(R.color.colorAccent)));
+            //newRecordingBtn.setBackgroundTintList(ColorStateList.valueOf(getResources().getColor(R.color.colorAccent)));
         }
     }
 
@@ -416,11 +425,13 @@ public class MainActivity extends AppCompatActivity {
                         recordingTimeHandler.post(new Runnable() {
                             @Override
                             public void run() {
+                                recordingTimeText.setText(duration);
                                 showNotification(currentRecordingName, duration);
                             }
                         });
                     }
                 }
+
             }
         });
         //start the thread

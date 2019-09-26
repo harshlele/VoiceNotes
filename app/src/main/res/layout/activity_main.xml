@@ -1,31 +1,46 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout android:layout_height="match_parent"
+<RelativeLayout android:layout_height="match_parent"
     android:layout_width="match_parent"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:orientation="vertical"
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/frame_layout"
+    android:background="@color/colorPrimary"
     >
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:id="@+id/recording_list"
-        >
 
-    </androidx.recyclerview.widget.RecyclerView>
+    <ImageView
+        android:id="@+id/new_recording_btn"
+        android:layout_width="128dp"
+        android:layout_height="128dp"
+        android:layout_centerHorizontal="true"
+        android:layout_centerVertical="true"
+        android:src="@drawable/ic_mic_off_white_128dp"
+        />
 
-
-
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/new_recording_fab"
+    <TextView
+        android:id="@+id/recording_name"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="end|bottom"
-        android:src="@drawable/ic_mic_white_40dp"
-        android:layout_margin="16dp"
+        android:layout_below="@+id/new_recording_btn"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="96dp"
+        android:text=""
+        android:textAppearance="@style/TextAppearance.MaterialComponents.Headline5"
+        android:textColor="@android:color/white"
+        />
 
+    <TextView
+        android:id="@+id/recording_time"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/recording_name"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="32dp"
+        android:text=""
+        android:textAppearance="@style/TextAppearance.MaterialComponents.Headline3"
+        android:textColor="@android:color/white"
         />
 
 
-</FrameLayout>
+
+</RelativeLayout>
