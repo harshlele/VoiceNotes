@@ -115,6 +115,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
 
+
         newRecordingBtn.setOnClickListener(view -> {
             if(readyToRecord) {
                 //change UI of recording button
@@ -165,6 +166,8 @@ public class MainActivity extends AppCompatActivity {
 
                             //set the recording name
                             recordingNameText.setText(filename);
+                            //set activitybackground color
+                            setActivityBackground(R.color.colorOn);
 
                             //show a toast to notify the user
                             Toast.makeText(getApplicationContext(),"Recording Started",Toast.LENGTH_SHORT).show();
@@ -179,6 +182,7 @@ public class MainActivity extends AppCompatActivity {
                 }
                 //stop audio recording and show a toast
                 else{
+                    setActivityBackground(R.color.colorOff);
                     stopRecording();
                 }
             }
@@ -191,7 +195,7 @@ public class MainActivity extends AppCompatActivity {
                 if(intent.getBooleanExtra("recording_stop",false) == true) {
                     Log.d(TAG, "onReceive: got the broadcast");
                     isRecording = false;
-                    //newRecordingBtn.setImageDrawable(getDrawable(R.drawable.ic_mic_white_40dp));
+                    setActivityBackground(R.color.colorOff);
                     enableNewRecordingBtn(true);
                     stopRecording();
                 }
@@ -291,6 +295,12 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    //set activity background
+    private void setActivityBackground(int color){
+        Log.d(TAG, "setActivityBackground: ");
+        findViewById(R.id.root_layout).setBackgroundColor(ContextCompat.getColor(MainActivity.this, color));
+    }
+
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
 
@@ -308,7 +318,7 @@ public class MainActivity extends AppCompatActivity {
                 if (!allGranted) {
                     enableNewRecordingBtn(false);
                     readyToRecord = false;
-                    Snackbar.make(findViewById(R.id.frame_layout), "App needs Storage and Audio permissions to record audio", Snackbar.LENGTH_INDEFINITE).setAction("GRANT", new View.OnClickListener() {
+                    Snackbar.make(findViewById(R.id.root_layout), "App needs Storage and Audio permissions to record audio", Snackbar.LENGTH_INDEFINITE).setAction("GRANT", new View.OnClickListener() {
                         @Override
                         public void onClick(View view) {
                             requestPermissions();
