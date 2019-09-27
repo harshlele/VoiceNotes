@@ -1,6 +1,7 @@
 package com.example.voicerecorder;
 
 import android.Manifest;
+import android.animation.ValueAnimator;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -9,6 +10,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Paint;
+import android.graphics.drawable.BitmapDrawable;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
@@ -17,6 +22,7 @@ import android.os.Handler;
 import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -72,8 +78,10 @@ public class MainActivity extends AppCompatActivity {
     private RecordWaveTask recordTask = null;
     //recording button
     private ImageView newRecordingBtn;
-
+    //text views for name and duration
     private TextView recordingNameText, recordingTimeText;
+    //root layout
+    private RelativeLayout rootLayout;
 
     //Broadcast reciever to recieve messages from the notification
     private BroadcastReceiver stopRecordingReciever;
@@ -120,8 +128,8 @@ public class MainActivity extends AppCompatActivity {
             if(readyToRecord) {
                 //change UI of recording button
                 isRecording = !isRecording;
-                if (isRecording) newRecordingBtn.setImageDrawable(getDrawable(R.drawable.ic_mic_off_white_40dp));
-                else newRecordingBtn.setImageDrawable(getDrawable(R.drawable.ic_mic_white_40dp));
+                if (isRecording) newRecordingBtn.setImageDrawable(getDrawable(R.drawable.ic_mic_off_white_128dp));
+                else newRecordingBtn.setImageDrawable(getDrawable(R.drawable.ic_mic_128dp));
 
                 if(isRecording){
                     //create name of note file based on current time
@@ -166,11 +174,16 @@ public class MainActivity extends AppCompatActivity {
 
                             //set the recording name
                             recordingNameText.setText(filename);
-                            //set activitybackground color
-                            setActivityBackground(R.color.colorOn);
 
+                            recordingNameText.setTextColor(getResources().getColor(R.color.colorOff));
+                            recordingTimeText.setTextColor(getResources().getColor(R.color.colorOff));
+
+                            //set activitybackground color
+                            //setActivityBackground(R.color.colorOn);
+                            animateActivityBackground(R.color.colorOff,R.color.colorOn);
                             //show a toast to notify the user
                             Toast.makeText(getApplicationContext(),"Recording Started",Toast.LENGTH_SHORT).show();
+
 
                         } catch (Exception e) {
                             e.printStackTrace();
@@ -182,8 +195,13 @@ public class MainActivity extends AppCompatActivity {
                 }
                 //stop audio recording and show a toast
                 else{
-                    setActivityBackground(R.color.colorOff);
+                    //setActivityBackground(R.color.colorOff);
+                    animateActivityBackground(R.color.colorOn,R.color.colorOff);
+                    recordingNameText.setTextColor(getResources().getColor(R.color.colorOn));
+                    recordingTimeText.setTextColor(getResources().getColor(R.color.colorOn));
+
                     stopRecording();
+
                 }
             }
         });
@@ -195,9 +213,12 @@ public class MainActivity extends AppCompatActivity {
                 if(intent.getBooleanExtra("recording_stop",false) == true) {
                     Log.d(TAG, "onReceive: got the broadcast");
                     isRecording = false;
-                    setActivityBackground(R.color.colorOff);
-                    enableNewRecordingBtn(true);
                     stopRecording();
+                    animateActivityBackground(R.color.colorOn,R.color.colorOff);
+                    recordingNameText.setTextColor(getResources().getColor(R.color.colorOn));
+                    recordingTimeText.setTextColor(getResources().getColor(R.color.colorOn));
+                    enableNewRecordingBtn(true);
+
                 }
             }
         };
@@ -261,6 +282,8 @@ public class MainActivity extends AppCompatActivity {
 
     //stop the audio recording
     private void stopRecording(){
+
+
         //interrupt the time recording thread
         recordingTimeUpdateThread.interrupt();
 
@@ -274,7 +297,7 @@ public class MainActivity extends AppCompatActivity {
             Log.d(TAG, "stopRecording: TASK NOT RUNNING!");
         }
 
-        currentRecordingName = "";
+        //currentRecordingName = "";
 
         //make a toast, and remove the notification
         Toast.makeText(getApplicationContext(),"Recording Stopped",Toast.LENGTH_SHORT).show();
@@ -286,19 +309,43 @@ public class MainActivity extends AppCompatActivity {
     private void enableNewRecordingBtn(boolean enable){
         newRecordingBtn.setEnabled(enable);
         if(!enable) {
-            newRecordingBtn.setImageDrawable(getDrawable(R.drawable.ic_mic_off_white_40dp));
+            newRecordingBtn.setImageDrawable(getDrawable(R.drawable.ic_mic_off_white_128dp));
             //newRecordingBtn.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
         }
         else{
-            newRecordingBtn.setImageDrawable(getDrawable(R.drawable.ic_mic_white_40dp));
+            newRecordingBtn.setImageDrawable(getDrawable(R.drawable.ic_mic_128dp));
             //newRecordingBtn.setBackgroundTintList(ColorStateList.valueOf(getResources().getColor(R.color.colorAccent)));
         }
     }
 
-    //set activity background
-    private void setActivityBackground(int color){
-        Log.d(TAG, "setActivityBackground: ");
-        findViewById(R.id.root_layout).setBackgroundColor(ContextCompat.getColor(MainActivity.this, color));
+    private void animateActivityBackground(int startColor, int endColor){
+
+        if(rootLayout == null) rootLayout = findViewById(R.id.root_layout);
+
+        Log.d(TAG, "animateActivityBackground: " + rootLayout.getWidth() + " " + rootLayout.getHeight()) ;
+        int finalRadius = (int)Math.hypot(rootLayout.getWidth(),rootLayout.getHeight());
+
+        int centerX = rootLayout.getWidth()/2;
+        int centerY = rootLayout.getHeight()/2;
+
+        Bitmap b = Bitmap.createBitmap(rootLayout.getWidth(),rootLayout.getHeight(), Bitmap.Config.ARGB_8888);
+        Canvas c = new Canvas(b);
+        Paint p = new Paint();
+        c.drawColor(ContextCompat.getColor(MainActivity.this,startColor));
+        p.setColor(ContextCompat.getColor(MainActivity.this,endColor));
+
+        ValueAnimator valueAnimator = ValueAnimator.ofFloat(0.0f, 1.0f);
+        valueAnimator.setDuration(1000);
+        valueAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(ValueAnimator valueAnimator) {
+
+                float currentRadius = ((float) (valueAnimator.getAnimatedValue())) * finalRadius;
+                c.drawCircle(centerX,centerY,currentRadius,p);
+                rootLayout.setBackground(new BitmapDrawable(getResources(),b));
+            }
+        });
+        valueAnimator.start();
     }
 
     @Override
