@@ -72,7 +72,6 @@ public class MainActivity extends AppCompatActivity {
     //full path of current recording
     private String recordingPath;
 
-    //private MediaRecorder recorder
 
     //AsyncTask to record audio
     private RecordWaveTask recordTask = null;
@@ -91,16 +90,13 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        //initialise media recorder
-        //recorder = new MediaRecorder();
-
         //initialise handler
         recordingTimeHandler = new Handler();
 
         // initialise record button and disable it until the app is ready to record
         newRecordingBtn = findViewById(R.id.new_recording_btn);
         enableNewRecordingBtn(false);
-
+        //recording name and time views
         recordingNameText = findViewById(R.id.recording_name);
         recordingTimeText = findViewById(R.id.recording_time);
 
@@ -152,14 +148,7 @@ public class MainActivity extends AppCompatActivity {
 
                         //start recording audio and show a toast
                         try {
-                            //check if the recorder is in the correct state to record
-                            //if(!isRecorderReady) setupRecorder();
-
-                            //start recording
-                            //recorder.setOutputFile(recordingPath);
-                            //recorder.prepare();
-                            //recorder.start();
-
+                            //launchTask starts AsyncTask which starts recording
                             launchTask(recordingPath);
 
                             //record current time to calculate time passed since recording began
@@ -174,12 +163,11 @@ public class MainActivity extends AppCompatActivity {
 
                             //set the recording name
                             recordingNameText.setText(filename);
-
+                            //set the recording name and text colors
                             recordingNameText.setTextColor(getResources().getColor(R.color.colorOff));
                             recordingTimeText.setTextColor(getResources().getColor(R.color.colorOff));
 
-                            //set activitybackground color
-                            //setActivityBackground(R.color.colorOn);
+                            //animate the activity background to a new color
                             animateActivityBackground(R.color.colorOff,R.color.colorOn);
                             //show a toast to notify the user
                             Toast.makeText(getApplicationContext(),"Recording Started",Toast.LENGTH_SHORT).show();
@@ -195,11 +183,12 @@ public class MainActivity extends AppCompatActivity {
                 }
                 //stop audio recording and show a toast
                 else{
-                    //setActivityBackground(R.color.colorOff);
+                    //animate the activity background to a new color
                     animateActivityBackground(R.color.colorOn,R.color.colorOff);
+                    //set the recording name and text colors
                     recordingNameText.setTextColor(getResources().getColor(R.color.colorOn));
                     recordingTimeText.setTextColor(getResources().getColor(R.color.colorOn));
-
+                    //this method stops the AsyncTask that's recording audio
                     stopRecording();
 
                 }
@@ -211,12 +200,14 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onReceive(Context context, Intent intent) {
                 if(intent.getBooleanExtra("recording_stop",false) == true) {
-                    Log.d(TAG, "onReceive: got the broadcast");
                     isRecording = false;
                     stopRecording();
+                    //animate the activity background to a new color
                     animateActivityBackground(R.color.colorOn,R.color.colorOff);
+                    //set the recording name and text colors
                     recordingNameText.setTextColor(getResources().getColor(R.color.colorOn));
                     recordingTimeText.setTextColor(getResources().getColor(R.color.colorOn));
+                    //set the new recording button back to on
                     enableNewRecordingBtn(true);
 
                 }
@@ -238,16 +229,6 @@ public class MainActivity extends AppCompatActivity {
         recordTask.execute(f);
     }
 
-
-    //set the recorder source, output format etc so its in the correct state to record
-    /*
-    private void setupRecorder(){
-            recorder.setAudioSource(MediaRecorder.AudioSource.VOICE_RECOGNITION);
-            recorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
-            recorder.setAudioEncoder(MediaRecorder.OutputFormat.AMR_NB);
-            isRecorderReady = true;
-    }
-    */
 
     //show a persistent notification when recording is going on
     private void showNotification(String recordingName,String recordingText){
@@ -287,9 +268,6 @@ public class MainActivity extends AppCompatActivity {
         //interrupt the time recording thread
         recordingTimeUpdateThread.interrupt();
 
-        //recorder.stop();
-        //recorder.reset();
-
         //stop the audio recording AsyncTask
         if (!recordTask.isCancelled() && recordTask.getStatus() == AsyncTask.Status.RUNNING) {
             recordTask.cancel(false);
@@ -310,27 +288,26 @@ public class MainActivity extends AppCompatActivity {
         newRecordingBtn.setEnabled(enable);
         if(!enable) {
             newRecordingBtn.setImageDrawable(getDrawable(R.drawable.ic_mic_off_white_128dp));
-            //newRecordingBtn.setBackgroundTintList(ColorStateList.valueOf(Color.GRAY));
         }
         else{
             newRecordingBtn.setImageDrawable(getDrawable(R.drawable.ic_mic_128dp));
-            //newRecordingBtn.setBackgroundTintList(ColorStateList.valueOf(getResources().getColor(R.color.colorAccent)));
         }
     }
 
+    //run an animation where the activity background changes colour in a circle
     private void animateActivityBackground(int startColor, int endColor){
 
         if(rootLayout == null) rootLayout = findViewById(R.id.root_layout);
-
-        Log.d(TAG, "animateActivityBackground: " + rootLayout.getWidth() + " " + rootLayout.getHeight()) ;
+        //calculate the final radius of the circle
         int finalRadius = (int)Math.hypot(rootLayout.getWidth(),rootLayout.getHeight());
-
+        //get center co-ordinates (from where the circle will begin drawing)
         int centerX = rootLayout.getWidth()/2;
         int centerY = rootLayout.getHeight()/2;
-
+        //create bitmap outside the ValueAnimator so we can use the same Bitmap every time
         Bitmap b = Bitmap.createBitmap(rootLayout.getWidth(),rootLayout.getHeight(), Bitmap.Config.ARGB_8888);
         Canvas c = new Canvas(b);
         Paint p = new Paint();
+        //initially, draw the start colour over the whole canvas
         c.drawColor(ContextCompat.getColor(MainActivity.this,startColor));
         p.setColor(ContextCompat.getColor(MainActivity.this,endColor));
 
@@ -339,7 +316,9 @@ public class MainActivity extends AppCompatActivity {
         valueAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
             @Override
             public void onAnimationUpdate(ValueAnimator valueAnimator) {
-
+                //calculate current radius, then draw a circle at the center that's of the current radius
+                //over time, the cirle becomes bigger and bigger until it occupies the whole screen,
+                // and the whole background colour has been changed
                 float currentRadius = ((float) (valueAnimator.getAnimatedValue())) * finalRadius;
                 c.drawCircle(centerX,centerY,currentRadius,p);
                 rootLayout.setBackground(new BitmapDrawable(getResources(),b));
@@ -497,7 +476,7 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    //unregister the reciever in onDestroy instead of onStop so the notification works even when app is in the background
+    //unregister the receiver in onDestroy instead of onStop so the notification works even when app is in the background
     @Override
     protected void onDestroy() {
         super.onDestroy();
