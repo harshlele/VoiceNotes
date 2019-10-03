@@ -14,6 +14,8 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.drawable.BitmapDrawable;
+import android.media.AudioManager;
+import android.media.MediaPlayer;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
@@ -34,6 +36,7 @@ import androidx.core.app.NotificationManagerCompat;
 import androidx.core.content.ContextCompat;
 
 import com.google.android.material.snackbar.Snackbar;
+import com.ohoussein.playpause.PlayPauseView;
 
 import java.io.File;
 import java.text.SimpleDateFormat;
@@ -60,7 +63,8 @@ public class MainActivity extends AppCompatActivity {
     private boolean readyToRecord = false;
     //to check whether the MediaRecorder object is in the correct state and ready to record
     private boolean isRecorderReady = false;
-
+    //to check whether a recording is being played
+    private boolean isPlayingRecording = false;
 
     //calendar to hold the start time
     private Calendar recordingStartTime;
@@ -75,15 +79,23 @@ public class MainActivity extends AppCompatActivity {
 
     //AsyncTask to record audio
     private RecordWaveTask recordTask = null;
+    //to play recordings
+    private MediaPlayer mediaPlayer;
+
     //recording button
     private ImageView newRecordingBtn;
     //text views for name and duration
     private TextView recordingNameText, recordingTimeText;
     //root layout
     private RelativeLayout rootLayout;
+    //play/pause button
+    private PlayPauseView playPauseBtn;
 
     //Broadcast reciever to recieve messages from the notification
     private BroadcastReceiver stopRecordingReciever;
+
+    enum ANIMATION_ORIGIN{ANIMATION_ORIGIN_RECORD_BTN, ANIMATION_ORIGIN_PLAY_BTN};
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -93,12 +105,20 @@ public class MainActivity extends AppCompatActivity {
         //initialise handler
         recordingTimeHandler = new Handler();
 
+        //initialise mediaplayer
+        mediaPlayer = new MediaPlayer();
+        mediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
+
+
         // initialise record button and disable it until the app is ready to record
         newRecordingBtn = findViewById(R.id.new_recording_btn);
         enableNewRecordingBtn(false);
         //recording name and time views
         recordingNameText = findViewById(R.id.recording_name);
         recordingTimeText = findViewById(R.id.recording_time);
+
+        playPauseBtn = findViewById(R.id.play_pause_btn);
+        playPauseBtn.setVisibility(View.GONE);
 
         //create a notification channel for Android 8(O) and above
         createNotificationChannel();
@@ -166,9 +186,11 @@ public class MainActivity extends AppCompatActivity {
                             //set the recording name and text colors
                             recordingNameText.setTextColor(getResources().getColor(R.color.colorOff));
                             recordingTimeText.setTextColor(getResources().getColor(R.color.colorOff));
+                            //hide the play/pause button
+                            playPauseBtn.setVisibility(View.GONE);
 
                             //animate the activity background to a new color
-                            animateActivityBackground(R.color.colorOff,R.color.colorOn);
+                            animateActivityBackground(R.color.colorOff,R.color.colorOn,ANIMATION_ORIGIN.ANIMATION_ORIGIN_RECORD_BTN);
                             //show a toast to notify the user
                             Toast.makeText(getApplicationContext(),"Recording Started",Toast.LENGTH_SHORT).show();
 
@@ -184,15 +206,39 @@ public class MainActivity extends AppCompatActivity {
                 //stop audio recording and show a toast
                 else{
                     //animate the activity background to a new color
-                    animateActivityBackground(R.color.colorOn,R.color.colorOff);
+                    animateActivityBackground(R.color.colorOn,R.color.colorOff,ANIMATION_ORIGIN.ANIMATION_ORIGIN_RECORD_BTN);
                     //set the recording name and text colors
                     recordingNameText.setTextColor(getResources().getColor(R.color.colorOn));
                     recordingTimeText.setTextColor(getResources().getColor(R.color.colorOn));
+                    //show the play/pause button
+                    if(!currentRecordingName.equals("") && !currentRecordingName.equals(null)){
+                        playPauseBtn.setVisibility(View.VISIBLE);
+                    }
+
                     //this method stops the AsyncTask that's recording audio
                     stopRecording();
 
                 }
             }
+        });
+
+        //click listener for play/pause button
+        playPauseBtn.setOnClickListener(view -> {
+            //toggle button
+            playPauseBtn.toggle();
+            isPlayingRecording = !isPlayingRecording;
+            //animate background and change text view colours depending on whether recording is being played.
+            if(isPlayingRecording){
+                recordingNameText.setTextColor(ContextCompat.getColor(MainActivity.this,R.color.colorOff));
+                recordingTimeText.setTextColor(ContextCompat.getColor(MainActivity.this,R.color.colorOff));
+                animateActivityBackground(R.color.colorOff,R.color.colorOn,ANIMATION_ORIGIN.ANIMATION_ORIGIN_PLAY_BTN);
+            }
+            else{
+                recordingNameText.setTextColor(ContextCompat.getColor(MainActivity.this,R.color.colorOn));
+                recordingTimeText.setTextColor(ContextCompat.getColor(MainActivity.this,R.color.colorOn));
+                animateActivityBackground(R.color.colorOn,R.color.colorOff,ANIMATION_ORIGIN.ANIMATION_ORIGIN_PLAY_BTN);
+            }
+
         });
 
         //setup and register the broadcast reciever to get messages from the notification
@@ -203,7 +249,7 @@ public class MainActivity extends AppCompatActivity {
                     isRecording = false;
                     stopRecording();
                     //animate the activity background to a new color
-                    animateActivityBackground(R.color.colorOn,R.color.colorOff);
+                    animateActivityBackground(R.color.colorOn,R.color.colorOff,ANIMATION_ORIGIN.ANIMATION_ORIGIN_RECORD_BTN);
                     //set the recording name and text colors
                     recordingNameText.setTextColor(getResources().getColor(R.color.colorOn));
                     recordingTimeText.setTextColor(getResources().getColor(R.color.colorOn));
@@ -219,6 +265,9 @@ public class MainActivity extends AppCompatActivity {
         filter.addAction(String.valueOf(notificationId));
 
         registerReceiver(stopRecordingReciever,filter);
+
+
+
     }
 
 
@@ -295,14 +344,33 @@ public class MainActivity extends AppCompatActivity {
     }
 
     //run an animation where the activity background changes colour in a circle
-    private void animateActivityBackground(int startColor, int endColor){
+    private void animateActivityBackground(int startColor, int endColor,ANIMATION_ORIGIN origin){
+
 
         if(rootLayout == null) rootLayout = findViewById(R.id.root_layout);
         //calculate the final radius of the circle
         int finalRadius = (int)Math.hypot(rootLayout.getWidth(),rootLayout.getHeight());
-        //get center co-ordinates (from where the circle will begin drawing)
-        int centerX = rootLayout.getWidth()/2;
-        int centerY = rootLayout.getHeight()/2;
+
+        int centerX,centerY;
+
+        if(origin == ANIMATION_ORIGIN.ANIMATION_ORIGIN_PLAY_BTN){
+            int[] coords = new int[2];
+            playPauseBtn.getLocationOnScreen(coords);
+            centerX = coords[0] + playPauseBtn.getWidth()/2;
+            centerY = coords[1] + playPauseBtn.getHeight()/2;
+        }
+        else if(origin == ANIMATION_ORIGIN.ANIMATION_ORIGIN_RECORD_BTN){
+            int[] coords = new int[2];
+            newRecordingBtn.getLocationOnScreen(coords);
+            centerX = coords[0] + newRecordingBtn.getWidth()/2;
+            centerY = coords[1] + newRecordingBtn.getHeight()/2;
+        }
+        else{
+            //get center co-ordinates (from where the circle will begin drawing)
+            centerX = rootLayout.getWidth()/2;
+            centerY = rootLayout.getHeight()/2;
+        }
+
         //create bitmap outside the ValueAnimator so we can use the same Bitmap every time
         Bitmap b = Bitmap.createBitmap(rootLayout.getWidth(),rootLayout.getHeight(), Bitmap.Config.ARGB_8888);
         Canvas c = new Canvas(b);

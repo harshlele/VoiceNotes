@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout android:layout_height="match_parent"
     android:layout_width="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:orientation="vertical"
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/root_layout"
-    android:background="@color/colorOff"
-    >
+    android:background="@color/colorOff">
 
 
     <ImageView
@@ -40,6 +40,20 @@
         android:textAppearance="@style/TextAppearance.MaterialComponents.Headline3"
         android:textColor="@android:color/white"
         />
+
+    <com.ohoussein.playpause.PlayPauseView
+        android:id="@+id/play_pause_btn"
+        android:layout_width="96dp"
+        android:layout_height="96dp"
+        android:clickable="true"
+        android:focusable="true"
+        android:foreground="?android:selectableItemBackground"
+        android:layout_centerHorizontal="true"
+        android:layout_below="@id/recording_time"
+        android:layout_marginTop="24dp"
+        app:fill_color="@android:color/white"
+        app:pause_bg="@color/colorOn"
+        app:play_bg="@color/colorOn" />
 
 
 
