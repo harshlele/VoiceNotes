@@ -14,7 +14,7 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.drawable.BitmapDrawable;
-import android.media.AudioManager;
+import android.media.AudioAttributes;
 import android.media.MediaPlayer;
 import android.os.AsyncTask;
 import android.os.Build;
@@ -39,6 +39,8 @@ import com.google.android.material.snackbar.Snackbar;
 import com.ohoussein.playpause.PlayPauseView;
 
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -65,6 +67,9 @@ public class MainActivity extends AppCompatActivity {
     private boolean isRecorderReady = false;
     //to check whether a recording is being played
     private boolean isPlayingRecording = false;
+    //to check if the player has been started with a new file, or if its being resumed from a pause
+    private boolean isPlayerResuming = false;
+
 
     //calendar to hold the start time
     private Calendar recordingStartTime;
@@ -96,6 +101,10 @@ public class MainActivity extends AppCompatActivity {
 
     enum ANIMATION_ORIGIN{ANIMATION_ORIGIN_RECORD_BTN, ANIMATION_ORIGIN_PLAY_BTN};
 
+    //global listener because they are defined in onCreate, but set in onResume
+    private MediaPlayer.OnPreparedListener onPreparedListener;
+    private MediaPlayer.OnErrorListener onErrorListener;
+    private MediaPlayer.OnCompletionListener onCompletionListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -105,18 +114,12 @@ public class MainActivity extends AppCompatActivity {
         //initialise handler
         recordingTimeHandler = new Handler();
 
-        //initialise mediaplayer
-        mediaPlayer = new MediaPlayer();
-        mediaPlayer.setAudioStreamType(AudioManager.STREAM_MUSIC);
 
-
-        // initialise record button and disable it until the app is ready to record
+        //initialise views
         newRecordingBtn = findViewById(R.id.new_recording_btn);
-        enableNewRecordingBtn(false);
-        //recording name and time views
+        enableNewRecordingBtn(false);                                // initialise record button and disable it until the app is ready to record
         recordingNameText = findViewById(R.id.recording_name);
         recordingTimeText = findViewById(R.id.recording_time);
-
         playPauseBtn = findViewById(R.id.play_pause_btn);
         playPauseBtn.setVisibility(View.GONE);
 
@@ -205,18 +208,18 @@ public class MainActivity extends AppCompatActivity {
                 }
                 //stop audio recording and show a toast
                 else{
+                    //this method stops the AsyncTask that's recording audio
+                    stopRecording();
+
                     //animate the activity background to a new color
                     animateActivityBackground(R.color.colorOn,R.color.colorOff,ANIMATION_ORIGIN.ANIMATION_ORIGIN_RECORD_BTN);
                     //set the recording name and text colors
                     recordingNameText.setTextColor(getResources().getColor(R.color.colorOn));
                     recordingTimeText.setTextColor(getResources().getColor(R.color.colorOn));
                     //show the play/pause button
-                    if(!currentRecordingName.equals("") && !currentRecordingName.equals(null)){
+                    if(!currentRecordingName.equals(null) && !currentRecordingName.equals("")){
                         playPauseBtn.setVisibility(View.VISIBLE);
                     }
-
-                    //this method stops the AsyncTask that's recording audio
-                    stopRecording();
 
                 }
             }
@@ -229,14 +232,45 @@ public class MainActivity extends AppCompatActivity {
             isPlayingRecording = !isPlayingRecording;
             //animate background and change text view colours depending on whether recording is being played.
             if(isPlayingRecording){
+                //hide the recording button
+                newRecordingBtn.setVisibility(View.GONE);
+                enableNewRecordingBtn(false);
                 recordingNameText.setTextColor(ContextCompat.getColor(MainActivity.this,R.color.colorOff));
                 recordingTimeText.setTextColor(ContextCompat.getColor(MainActivity.this,R.color.colorOff));
                 animateActivityBackground(R.color.colorOff,R.color.colorOn,ANIMATION_ORIGIN.ANIMATION_ORIGIN_PLAY_BTN);
+                //if the player has started new recording, set the source and prepare it
+                if(!isPlayerResuming) {
+                    try {
+
+                        FileInputStream inputStream = new FileInputStream(recordingPath);
+                        mediaPlayer.setDataSource(inputStream.getFD());
+                        mediaPlayer.prepareAsync();
+                        inputStream.close();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                        Toast.makeText(getApplicationContext(),"Error on playback",Toast.LENGTH_LONG).show();
+                    }
+                    isPlayerResuming = false;
+
+                }
+                //if its resuming from paused playback, just start it
+                else {
+                    mediaPlayer.start();
+                }
             }
             else{
+                //make the recording button visible again
+                newRecordingBtn.setVisibility(View.VISIBLE);
+                enableNewRecordingBtn(true);
                 recordingNameText.setTextColor(ContextCompat.getColor(MainActivity.this,R.color.colorOn));
                 recordingTimeText.setTextColor(ContextCompat.getColor(MainActivity.this,R.color.colorOn));
                 animateActivityBackground(R.color.colorOn,R.color.colorOff,ANIMATION_ORIGIN.ANIMATION_ORIGIN_PLAY_BTN);
+                //pause playback
+                if(mediaPlayer.isPlaying()){
+                    mediaPlayer.pause();
+                    isPlayerResuming = true;
+                }
+
             }
 
         });
@@ -255,6 +289,12 @@ public class MainActivity extends AppCompatActivity {
                     recordingTimeText.setTextColor(getResources().getColor(R.color.colorOn));
                     //set the new recording button back to on
                     enableNewRecordingBtn(true);
+                    
+                    //show the play/pause button
+                    if(!currentRecordingName.equals(null) && !currentRecordingName.equals("")){
+                        playPauseBtn.setVisibility(View.VISIBLE);
+                    }
+
 
                 }
             }
@@ -266,7 +306,38 @@ public class MainActivity extends AppCompatActivity {
 
         registerReceiver(stopRecordingReciever,filter);
 
+        //define listeners
+        onPreparedListener = new MediaPlayer.OnPreparedListener() {
+            @Override
+            public void onPrepared(MediaPlayer mediaPlayer) {
+                mediaPlayer.start();
+            }
+        };
 
+        onErrorListener = new MediaPlayer.OnErrorListener() {
+            @Override
+            public boolean onError(MediaPlayer mediaPlayer, int i, int i1) {
+                Toast.makeText(getApplicationContext(),"MediaPlayer Error",Toast.LENGTH_LONG).show();
+                return true;
+            }
+        };
+
+        onCompletionListener = new MediaPlayer.OnCompletionListener() {
+            @Override
+            public void onCompletion(MediaPlayer mediaPlayer) {
+                //set the UI back to non-playing state
+                newRecordingBtn.setVisibility(View.VISIBLE);
+                enableNewRecordingBtn(true);
+                playPauseBtn.change(true);
+                isPlayingRecording = false;
+                isPlayerResuming = false;
+                //reset the recorder
+                mediaPlayer.reset();
+                recordingNameText.setTextColor(ContextCompat.getColor(MainActivity.this,R.color.colorOn));
+                recordingTimeText.setTextColor(ContextCompat.getColor(MainActivity.this,R.color.colorOn));
+                animateActivityBackground(R.color.colorOn,R.color.colorOff,ANIMATION_ORIGIN.ANIMATION_ORIGIN_PLAY_BTN);
+            }
+        };
 
     }
 
@@ -311,7 +382,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     //stop the audio recording
-    private void stopRecording(){
+    private void stopRecording() {
 
 
         //interrupt the time recording thread
@@ -329,6 +400,7 @@ public class MainActivity extends AppCompatActivity {
         //make a toast, and remove the notification
         Toast.makeText(getApplicationContext(),"Recording Stopped",Toast.LENGTH_SHORT).show();
         NotificationManagerCompat.from(this).cancel(notificationId);
+
 
     }
 
@@ -352,7 +424,7 @@ public class MainActivity extends AppCompatActivity {
         int finalRadius = (int)Math.hypot(rootLayout.getWidth(),rootLayout.getHeight());
 
         int centerX,centerY;
-
+        //calculate center co-ordinates (from where the circle will begin drawing) based on ANIMATION_ORIGIN
         if(origin == ANIMATION_ORIGIN.ANIMATION_ORIGIN_PLAY_BTN){
             int[] coords = new int[2];
             playPauseBtn.getLocationOnScreen(coords);
@@ -366,7 +438,6 @@ public class MainActivity extends AppCompatActivity {
             centerY = coords[1] + newRecordingBtn.getHeight()/2;
         }
         else{
-            //get center co-ordinates (from where the circle will begin drawing)
             centerX = rootLayout.getWidth()/2;
             centerY = rootLayout.getHeight()/2;
         }
@@ -542,6 +613,26 @@ public class MainActivity extends AppCompatActivity {
         recordingTimeUpdateThread.start();
 
 
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        //initialise mediaplayer in onResume because it has to be re-initialised every time the user comes back to the activity
+        mediaPlayer = new MediaPlayer();
+        mediaPlayer.setAudioAttributes(new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build());
+
+        mediaPlayer.setOnPreparedListener(onPreparedListener);
+        mediaPlayer.setOnCompletionListener(onCompletionListener);
+        mediaPlayer.setOnErrorListener(onErrorListener);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        //release and nullify the mediaplayer so other apps can use it
+        mediaPlayer.release();
+        mediaPlayer = null;
     }
 
     //unregister the receiver in onDestroy instead of onStop so the notification works even when app is in the background
