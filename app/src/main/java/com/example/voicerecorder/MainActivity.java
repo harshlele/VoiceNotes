@@ -61,21 +61,25 @@ public class MainActivity extends AppCompatActivity {
 
     //to check if the app is currently recording
     private boolean isRecording = false;
-    //to check whether app has all necessary permissions, and storage is accessible
+    //to check whether app has all necessary permissions and storage is accessible
     private boolean readyToRecord = false;
     //to check whether the MediaRecorder object is in the correct state and ready to record
     private boolean isRecorderReady = false;
     //to check whether a recording is being played
     private boolean isPlayingRecording = false;
-    //to check if the player has been started with a new file, or if its being resumed from a pause
+    //to check if the player has been started with a new file or if its being resumed from a pause
     private boolean isPlayerResuming = false;
 
 
-    //calendar to hold the start time
+    //calendar to hold the recording start time
     private Calendar recordingStartTime;
+
     //thread that will record the time passed since recording was started, and a handler to update the notification from the thread
     private Thread recordingTimeUpdateThread;
     private Handler recordingTimeHandler;
+    //thread that updates the playback progress time
+    private Thread playBackTimeThread;
+
     //filename of the current ongoing recording
     private String currentRecordingName = "";
     //full path of current recording
@@ -96,12 +100,12 @@ public class MainActivity extends AppCompatActivity {
     //play/pause button
     private PlayPauseView playPauseBtn;
 
-    //Broadcast reciever to recieve messages from the notification
-    private BroadcastReceiver stopRecordingReciever;
-
+    //Broadcast receiver to receive messages from the notification
+    private BroadcastReceiver stopRecordingReceiver;
+    //enum to set whether the background color change transition will begin from the record button or the play button
     enum ANIMATION_ORIGIN{ANIMATION_ORIGIN_RECORD_BTN, ANIMATION_ORIGIN_PLAY_BTN};
 
-    //global listener because they are defined in onCreate, but set in onResume
+
     private MediaPlayer.OnPreparedListener onPreparedListener;
     private MediaPlayer.OnErrorListener onErrorListener;
     private MediaPlayer.OnCompletionListener onCompletionListener;
@@ -257,6 +261,9 @@ public class MainActivity extends AppCompatActivity {
                 else {
                     mediaPlayer.start();
                 }
+                //start thread that will keep the recordingTimeText updated with the current position of recording playback
+                //(it ends when the playback is paused or is completed)
+                startPlayBackTimeThread();
             }
             else{
                 //make the recording button visible again
@@ -276,7 +283,7 @@ public class MainActivity extends AppCompatActivity {
         });
 
         //setup and register the broadcast reciever to get messages from the notification
-        stopRecordingReciever = new BroadcastReceiver() {
+        stopRecordingReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
                 if(intent.getBooleanExtra("recording_stop",false) == true) {
@@ -304,7 +311,7 @@ public class MainActivity extends AppCompatActivity {
         IntentFilter filter = new IntentFilter();
         filter.addAction(String.valueOf(notificationId));
 
-        registerReceiver(stopRecordingReciever,filter);
+        registerReceiver(stopRecordingReceiver,filter);
 
         //define listeners
         onPreparedListener = new MediaPlayer.OnPreparedListener() {
@@ -331,6 +338,9 @@ public class MainActivity extends AppCompatActivity {
                 playPauseBtn.change(true);
                 isPlayingRecording = false;
                 isPlayerResuming = false;
+                //stop the playback time thread
+                playBackTimeThread.interrupt();
+
                 //reset the recorder
                 mediaPlayer.reset();
                 recordingNameText.setTextColor(ContextCompat.getColor(MainActivity.this,R.color.colorOn));
@@ -582,7 +592,8 @@ public class MainActivity extends AppCompatActivity {
             public void run() {
                 //isRecording has to be checked because the thread doesnt stop even if .interrupt() is called >.<
                 while(!Thread.currentThread().isInterrupted() && isRecording){
-                    Log.d(TAG, "run: thread running");
+                    Log.d(TAG, "run:recording time thread running");
+                    //sleep for a second
                     try {
                         Thread.sleep(1000);
                     } catch (InterruptedException e) { e.printStackTrace();}
@@ -615,13 +626,46 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    //thread that updates the recording time text with the current position of the playback
+    private void startPlayBackTimeThread(){
+        playBackTimeThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                while(!Thread.currentThread().isInterrupted() && isPlayingRecording){
+                    Log.d(TAG, "run:playback time thread running");
+                    //sleep for a second
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) { e.printStackTrace();}
+                    //get the current playback position, convert it into a min:sec formatted string, and set it to the textview via recordingTimeHandler
+                    if( isPlayingRecording && mediaPlayer.isPlaying() ){
+                        long time = mediaPlayer.getCurrentPosition();
+                        String duration = String.format(Locale.US,"%02d:%02d",
+                                TimeUnit.MILLISECONDS.toMinutes(time),
+                                TimeUnit.MILLISECONDS.toSeconds(time) - TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(time))
+                        );
+                        recordingTimeHandler.post(new Runnable() {
+                            @Override
+                            public void run() {
+                                recordingTimeText.setText(duration);
+                            }
+                        });
+
+                    }
+
+                }
+            }
+        });
+        playBackTimeThread.start();
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
         //initialise mediaplayer in onResume because it has to be re-initialised every time the user comes back to the activity
         mediaPlayer = new MediaPlayer();
         mediaPlayer.setAudioAttributes(new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build());
-
+        //set the listeners(defined in onCreate)
         mediaPlayer.setOnPreparedListener(onPreparedListener);
         mediaPlayer.setOnCompletionListener(onCompletionListener);
         mediaPlayer.setOnErrorListener(onErrorListener);
@@ -640,7 +684,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         NotificationManagerCompat.from(this).cancel(notificationId);
-        unregisterReceiver(stopRecordingReciever);
+        unregisterReceiver(stopRecordingReceiver);
     }
 
 }
