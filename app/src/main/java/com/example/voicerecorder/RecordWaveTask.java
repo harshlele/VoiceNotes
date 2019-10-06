@@ -57,8 +57,10 @@ public class RecordWaveTask extends AsyncTask<File, Void, Object[]> {
 
     private Context ctx;
 
-    RecordWaveTask(Context ctx) {
+    private RecordingTaskResultsListener recordingTaskResultsListener;
+    RecordWaveTask(Context ctx,RecordingTaskResultsListener listener) {
         setContext(ctx);
+        recordingTaskResultsListener = listener;
     }
 
     private void setContext(Context ctx) {
@@ -297,11 +299,13 @@ public class RecordWaveTask extends AsyncTask<File, Void, Object[]> {
                 // Display final recording stats
                 double size = (long) results[0] / 1000000.00;
                 long time = (long) results[1] / 1000;
-
+                recordingTaskResultsListener.onRecordingOver(size,time);
             } else {
                 // Error
                 Log.e(TAG, "onPostExecute: " + throwable.getLocalizedMessage());
             }
         }
     }
+
+
 }

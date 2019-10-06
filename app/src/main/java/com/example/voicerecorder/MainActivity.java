@@ -49,7 +49,7 @@ import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity{
 
     //log tag
     private static final String TAG = "Notes";
@@ -102,6 +102,7 @@ public class MainActivity extends AppCompatActivity {
 
     //Broadcast receiver to receive messages from the notification
     private BroadcastReceiver stopRecordingReceiver;
+
     //enum to set whether the background color change transition will begin from the record button or the play button
     enum ANIMATION_ORIGIN{ANIMATION_ORIGIN_RECORD_BTN, ANIMATION_ORIGIN_PLAY_BTN};
 
@@ -109,6 +110,8 @@ public class MainActivity extends AppCompatActivity {
     private MediaPlayer.OnPreparedListener onPreparedListener;
     private MediaPlayer.OnErrorListener onErrorListener;
     private MediaPlayer.OnCompletionListener onCompletionListener;
+
+    private RecordingTaskResultsListener recordingTaskResultsListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -349,13 +352,22 @@ public class MainActivity extends AppCompatActivity {
             }
         };
 
+        recordingTaskResultsListener = new RecordingTaskResultsListener() {
+            @Override
+            public void onRecordingOver(double size, long time) {
+                Log.d(TAG, "onRecordingOver: FILE NAME: " + currentRecordingName);
+                Log.d(TAG, "onRecordingOver: SIZE: " + size + " DURATION: " + time);
+                Log.d(TAG, "onRecordingOver: recording TIME: " + recordingStartTime.getTime().toString());
+            }
+        };
+
     }
 
 
     //start the asynctask for recording audio
     private void launchTask(String wavFile) {
         File f = new File(wavFile);
-        recordTask = new RecordWaveTask(this);
+        recordTask = new RecordWaveTask(this,recordingTaskResultsListener);
         recordTask.execute(f);
     }
 
@@ -687,4 +699,8 @@ public class MainActivity extends AppCompatActivity {
         unregisterReceiver(stopRecordingReceiver);
     }
 
+
+
 }
+
+
