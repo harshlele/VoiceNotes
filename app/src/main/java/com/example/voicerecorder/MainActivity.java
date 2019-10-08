@@ -6,10 +6,12 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Paint;
@@ -112,6 +114,8 @@ public class MainActivity extends AppCompatActivity{
     private MediaPlayer.OnCompletionListener onCompletionListener;
 
     private RecordingTaskResultsListener recordingTaskResultsListener;
+    //database connection, opened once and closed only when activity is destroyed.
+    private RecordingDBHelper recordingDBHelper;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -356,11 +360,16 @@ public class MainActivity extends AppCompatActivity{
             @Override
             public void onRecordingOver(double size, long time) {
                 Log.d(TAG, "onRecordingOver: FILE NAME: " + currentRecordingName);
-                Log.d(TAG, "onRecordingOver: SIZE: " + size + " DURATION: " + time);
-                Log.d(TAG, "onRecordingOver: recording TIME: " + recordingStartTime.getTime().toString());
+                Log.d(TAG, "onRecordingOver: SIZE_MB: " + size + " DURATION_SEC: " + time);
+                Log.d(TAG, "onRecordingOver: recording TIME_MILIS: " + recordingStartTime.getTimeInMillis()/1000);
+                //store recording data into a database
+                storeRecordingData(size,time);
+
             }
         };
 
+        //initialise db helper only once in onCreate and keep it open until the activity is open
+        recordingDBHelper = new RecordingDBHelper(getApplicationContext());
     }
 
 
@@ -671,6 +680,32 @@ public class MainActivity extends AppCompatActivity{
         playBackTimeThread.start();
     }
 
+    //store the recording data in a database
+    private void storeRecordingData(double size, long time){
+        //get the current recording name and start time
+        String name = currentRecordingName;
+        long startTime = recordingStartTime.getTimeInMillis();
+        //do the insert operation in a seperate thread so it doesn't the main thread
+        Thread dBInsertThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+
+                SQLiteDatabase db = recordingDBHelper.getWritableDatabase();
+
+                ContentValues values = new ContentValues();
+                values.put(RecordingDBHelper.RecordingDBSchema.COLUMN_NAME,name);
+                values.put(RecordingDBHelper.RecordingDBSchema.COLUMN_DURATION_SEC,time);
+                values.put(RecordingDBHelper.RecordingDBSchema.COLUMN_TIME_MILIS,startTime);
+                values.put(RecordingDBHelper.RecordingDBSchema.COLUMN_SIZE_MB,size);
+
+                db.insert(RecordingDBHelper.RecordingDBSchema.TABLE_NAME,null,values);
+                db.close();
+            }
+        });
+        dBInsertThread.start();
+
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
@@ -691,12 +726,16 @@ public class MainActivity extends AppCompatActivity{
         mediaPlayer = null;
     }
 
-    //unregister the receiver in onDestroy instead of onStop so the notification works even when app is in the background
+
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        //cancel the notification(if there is one, and the activity is getting destroyed)
         NotificationManagerCompat.from(this).cancel(notificationId);
+        //unregister the receiver in onDestroy instead of onStop so the notification works even when app is in the background
         unregisterReceiver(stopRecordingReceiver);
+        //close the db helper
+        recordingDBHelper.close();
     }
 
 
