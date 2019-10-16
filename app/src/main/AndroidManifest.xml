@@ -4,8 +4,7 @@
     package="com.example.voicerecorder">
 
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
-
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <application
         android:allowBackup="true"
@@ -15,11 +14,14 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
         tools:ignore="GoogleAppIndexingWarning">
-        <activity android:name=".MainActivity"
+        <activity android:name=".RecordingsActivity"
+            android:theme="@style/AppTheme.Fullscreen"
+            />
+        <activity
+            android:name=".MainActivity"
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:screenOrientation="portrait"
-            android:theme="@style/AppTheme.Fullscreen"
-            >
+            android:theme="@style/AppTheme.Fullscreen">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

@@ -1,6 +1,7 @@
 package com.example.voicerecorder;
 
 import android.Manifest;
+import android.animation.Animator;
 import android.animation.ValueAnimator;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -326,6 +327,7 @@ public class MainActivity extends AppCompatActivity{
                 //hide this view
                 view.setVisibility(View.GONE);
                 //animate activity background
+                //activity will be started after animation is over
                 animateActivityBackground(R.color.colorOff, R.color.colorOn,ANIMATION_ORIGIN.ANIMATION_ORIGIN_RECORDINGS_BTN);
 
             }
@@ -546,6 +548,7 @@ public class MainActivity extends AppCompatActivity{
 
         ValueAnimator valueAnimator = ValueAnimator.ofFloat(0.0f, 1.0f);
 
+
         if(origin == ANIMATION_ORIGIN.ANIMATION_ORIGIN_RECORDINGS_BTN)  valueAnimator.setDuration(500);
         else valueAnimator.setDuration(1000);
 
@@ -561,6 +564,26 @@ public class MainActivity extends AppCompatActivity{
                 rootLayout.setBackground(new BitmapDrawable(getResources(),b));
             }
         });
+        valueAnimator.addListener(new Animator.AnimatorListener() {
+            @Override
+            public void onAnimationStart(Animator animator) {}
+            @Override
+            public void onAnimationCancel(Animator animator) {}
+            @Override
+            public void onAnimationRepeat(Animator animator) {}
+            @Override
+
+            //start the recordings activity when the animation ends
+            public void onAnimationEnd(Animator animator) {
+                if(origin == ANIMATION_ORIGIN.ANIMATION_ORIGIN_RECORDINGS_BTN){
+                    Intent i = new Intent(MainActivity.this,RecordingsActivity.class);
+                    startActivity(i);
+                    //cancel the default activity enter animation
+                    overridePendingTransition(0,0);
+                }
+            }
+        });
+
         valueAnimator.start();
     }
 
