@@ -37,6 +37,7 @@ import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
 import androidx.core.content.ContextCompat;
 
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.snackbar.Snackbar;
 import com.ohoussein.playpause.PlayPauseView;
 
@@ -101,12 +102,14 @@ public class MainActivity extends AppCompatActivity{
     private RelativeLayout rootLayout;
     //play/pause button
     private PlayPauseView playPauseBtn;
+    //button to start a different activity that shows previous recordings
+    private FloatingActionButton showRecordingsBtn;
 
     //Broadcast receiver to receive messages from the notification
     private BroadcastReceiver stopRecordingReceiver;
 
     //enum to set whether the background color change transition will begin from the record button or the play button
-    enum ANIMATION_ORIGIN{ANIMATION_ORIGIN_RECORD_BTN, ANIMATION_ORIGIN_PLAY_BTN};
+    enum ANIMATION_ORIGIN{ANIMATION_ORIGIN_RECORD_BTN, ANIMATION_ORIGIN_PLAY_BTN, ANIMATION_ORIGIN_RECORDINGS_BTN};
 
 
     private MediaPlayer.OnPreparedListener onPreparedListener;
@@ -133,6 +136,10 @@ public class MainActivity extends AppCompatActivity{
         recordingTimeText = findViewById(R.id.recording_time);
         playPauseBtn = findViewById(R.id.play_pause_btn);
         playPauseBtn.setVisibility(View.GONE);
+        showRecordingsBtn = findViewById(R.id.show_recordings_btn);
+
+        //initialise db helper only once in onCreate and keep it open until the activity is open
+        recordingDBHelper = new RecordingDBHelper(getApplicationContext());
 
         //create a notification channel for Android 8(O) and above
         createNotificationChannel();
@@ -200,8 +207,10 @@ public class MainActivity extends AppCompatActivity{
                             //set the recording name and text colors
                             recordingNameText.setTextColor(getResources().getColor(R.color.colorOff));
                             recordingTimeText.setTextColor(getResources().getColor(R.color.colorOff));
-                            //hide the play/pause button
+
+                            //hide the play/pause button and previous recordings button
                             playPauseBtn.setVisibility(View.GONE);
+                            showRecordingsBtn.setVisibility(View.GONE);
 
                             //animate the activity background to a new color
                             animateActivityBackground(R.color.colorOff,R.color.colorOn,ANIMATION_ORIGIN.ANIMATION_ORIGIN_RECORD_BTN);
@@ -227,10 +236,12 @@ public class MainActivity extends AppCompatActivity{
                     //set the recording name and text colors
                     recordingNameText.setTextColor(getResources().getColor(R.color.colorOn));
                     recordingTimeText.setTextColor(getResources().getColor(R.color.colorOn));
-                    //show the play/pause button
+
+                    //show the play/pause button and previous recordings button
                     if(!currentRecordingName.equals(null) && !currentRecordingName.equals("")){
                         playPauseBtn.setVisibility(View.VISIBLE);
                     }
+                    showRecordingsBtn.setVisibility(View.VISIBLE);
 
                 }
             }
@@ -243,8 +254,12 @@ public class MainActivity extends AppCompatActivity{
             isPlayingRecording = !isPlayingRecording;
             //animate background and change text view colours depending on whether recording is being played.
             if(isPlayingRecording){
-                //hide the recording button
+                //hide the new recording button and previous recordings button
                 newRecordingBtn.setVisibility(View.GONE);
+                showRecordingsBtn.setVisibility(View.GONE);
+                //set elevation to 0 so it blends into the blue background
+                playPauseBtn.setElevation(0f);
+
                 enableNewRecordingBtn(false);
                 recordingNameText.setTextColor(ContextCompat.getColor(MainActivity.this,R.color.colorOff));
                 recordingTimeText.setTextColor(ContextCompat.getColor(MainActivity.this,R.color.colorOff));
@@ -273,9 +288,13 @@ public class MainActivity extends AppCompatActivity{
                 startPlayBackTimeThread();
             }
             else{
-                //make the recording button visible again
+                //make the new recording button and previous recordings visible again
                 newRecordingBtn.setVisibility(View.VISIBLE);
                 enableNewRecordingBtn(true);
+                showRecordingsBtn.setVisibility(View.VISIBLE);
+                //set elevation back to the default
+                playPauseBtn.setElevation(6f);
+
                 recordingNameText.setTextColor(ContextCompat.getColor(MainActivity.this,R.color.colorOn));
                 recordingTimeText.setTextColor(ContextCompat.getColor(MainActivity.this,R.color.colorOn));
                 animateActivityBackground(R.color.colorOn,R.color.colorOff,ANIMATION_ORIGIN.ANIMATION_ORIGIN_PLAY_BTN);
@@ -289,6 +308,51 @@ public class MainActivity extends AppCompatActivity{
 
         });
 
+        //when the show recordings button is pressed, stop any ongoing activities and start the recordings page activity
+        showRecordingsBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                //stop any playback or recordings(just in case,if its happening)
+                if(isPlayingRecording){
+                    mediaPlayer.stop();
+                    if(playBackTimeThread.isAlive()) playBackTimeThread.interrupt();
+                    isPlayingRecording = false;
+                    isPlayerResuming = false;
+                }
+                if(isRecording){
+                    stopRecording();
+                    isRecording = false;
+                }
+                //hide this view
+                view.setVisibility(View.GONE);
+                //animate activity background
+                animateActivityBackground(R.color.colorOff, R.color.colorOn,ANIMATION_ORIGIN.ANIMATION_ORIGIN_RECORDINGS_BTN);
+
+            }
+        });
+
+        //initialise broadcast receiver and set it to receive broadcasts from notification
+        setupNotifBroadcastReciever();
+
+        //initialise the mediaplayer listeners
+        defineMediaPlayerListeners();
+
+        recordingTaskResultsListener = new RecordingTaskResultsListener() {
+            @Override
+            public void onRecordingOver(double size, long time) {
+                Log.d(TAG, "onRecordingOver: FILE NAME: " + currentRecordingName);
+                Log.d(TAG, "onRecordingOver: SIZE_MB: " + size + " DURATION_SEC: " + time);
+                Log.d(TAG, "onRecordingOver: recording TIME_MILIS: " + recordingStartTime.getTimeInMillis()/1000);
+                //store recording data into a database
+                storeRecordingData(size,time);
+
+            }
+        };
+
+
+    }
+
+    private void setupNotifBroadcastReciever(){
         //setup and register the broadcast reciever to get messages from the notification
         stopRecordingReceiver = new BroadcastReceiver() {
             @Override
@@ -303,7 +367,7 @@ public class MainActivity extends AppCompatActivity{
                     recordingTimeText.setTextColor(getResources().getColor(R.color.colorOn));
                     //set the new recording button back to on
                     enableNewRecordingBtn(true);
-                    
+
                     //show the play/pause button
                     if(!currentRecordingName.equals(null) && !currentRecordingName.equals("")){
                         playPauseBtn.setVisibility(View.VISIBLE);
@@ -319,8 +383,10 @@ public class MainActivity extends AppCompatActivity{
         filter.addAction(String.valueOf(notificationId));
 
         registerReceiver(stopRecordingReceiver,filter);
+    }
 
-        //define listeners
+    //initialise listeners for mediaplayer
+    private void defineMediaPlayerListeners(){
         onPreparedListener = new MediaPlayer.OnPreparedListener() {
             @Override
             public void onPrepared(MediaPlayer mediaPlayer) {
@@ -341,10 +407,15 @@ public class MainActivity extends AppCompatActivity{
             public void onCompletion(MediaPlayer mediaPlayer) {
                 //set the UI back to non-playing state
                 newRecordingBtn.setVisibility(View.VISIBLE);
+                showRecordingsBtn.setVisibility(View.VISIBLE);
                 enableNewRecordingBtn(true);
                 playPauseBtn.change(true);
+                //set elevation back to the default
+                playPauseBtn.setElevation(6f);
+
                 isPlayingRecording = false;
                 isPlayerResuming = false;
+
                 //stop the playback time thread
                 playBackTimeThread.interrupt();
 
@@ -356,20 +427,6 @@ public class MainActivity extends AppCompatActivity{
             }
         };
 
-        recordingTaskResultsListener = new RecordingTaskResultsListener() {
-            @Override
-            public void onRecordingOver(double size, long time) {
-                Log.d(TAG, "onRecordingOver: FILE NAME: " + currentRecordingName);
-                Log.d(TAG, "onRecordingOver: SIZE_MB: " + size + " DURATION_SEC: " + time);
-                Log.d(TAG, "onRecordingOver: recording TIME_MILIS: " + recordingStartTime.getTimeInMillis()/1000);
-                //store recording data into a database
-                storeRecordingData(size,time);
-
-            }
-        };
-
-        //initialise db helper only once in onCreate and keep it open until the activity is open
-        recordingDBHelper = new RecordingDBHelper(getApplicationContext());
     }
 
 
@@ -468,6 +525,12 @@ public class MainActivity extends AppCompatActivity{
             centerX = coords[0] + newRecordingBtn.getWidth()/2;
             centerY = coords[1] + newRecordingBtn.getHeight()/2;
         }
+        else if(origin == ANIMATION_ORIGIN.ANIMATION_ORIGIN_RECORDINGS_BTN){
+            int[] coords = new int[2];
+            showRecordingsBtn.getLocationOnScreen(coords);
+            centerX = coords[0] + showRecordingsBtn.getWidth()/2;
+            centerY = coords[1] + showRecordingsBtn.getHeight()/2;
+        }
         else{
             centerX = rootLayout.getWidth()/2;
             centerY = rootLayout.getHeight()/2;
@@ -482,7 +545,11 @@ public class MainActivity extends AppCompatActivity{
         p.setColor(ContextCompat.getColor(MainActivity.this,endColor));
 
         ValueAnimator valueAnimator = ValueAnimator.ofFloat(0.0f, 1.0f);
-        valueAnimator.setDuration(1000);
+
+        if(origin == ANIMATION_ORIGIN.ANIMATION_ORIGIN_RECORDINGS_BTN)  valueAnimator.setDuration(500);
+        else valueAnimator.setDuration(1000);
+
+
         valueAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
             @Override
             public void onAnimationUpdate(ValueAnimator valueAnimator) {

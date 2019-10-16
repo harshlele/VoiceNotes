@@ -53,8 +53,20 @@
         android:layout_marginTop="24dp"
         app:fill_color="@android:color/white"
         app:pause_bg="@color/colorOn"
-        app:play_bg="@color/colorOn" />
+        app:play_bg="@color/colorOn"
+        android:elevation="6dp"
+        />
 
-
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_alignParentBottom="true"
+        android:layout_marginBottom="24dp"
+        android:backgroundTint="@color/colorOn"
+        android:src="@drawable/ic_noteslist_24dp"
+        android:id="@+id/show_recordings_btn"
+        app:borderWidth="0dp"
+        />
 
 </RelativeLayout>
