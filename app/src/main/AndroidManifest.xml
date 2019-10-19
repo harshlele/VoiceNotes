@@ -15,7 +15,7 @@
         android:theme="@style/AppTheme"
         tools:ignore="GoogleAppIndexingWarning">
         <activity android:name=".RecordingsActivity"
-            android:theme="@style/AppTheme.Fullscreen"
+            android:theme="@style/AppTheme.Recordings"
             />
         <activity
             android:name=".MainActivity"

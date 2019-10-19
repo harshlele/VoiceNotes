@@ -686,7 +686,7 @@ public class MainActivity extends AppCompatActivity{
     //this method is called everytime the app starts
     private void createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "Voice Notes", NotificationManager.IMPORTANCE_DEFAULT);
+            NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "Voice Notes", NotificationManager.IMPORTANCE_LOW); //low importance so it doesn't make sound/vibrate
             channel.setDescription("Persistent notification shown when note is being recorded");
             // Register the channel with the system
             NotificationManager notificationManager = getSystemService(NotificationManager.class);

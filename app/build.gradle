@@ -42,4 +42,5 @@ dependencies {
     implementation 'com.github.ohoussein.playpauseview:playpauseview:1.0.2'
     //library to debug the database from browser
     debugImplementation 'com.amitshekhar.android:debug-db:1.0.6'
+
 }
