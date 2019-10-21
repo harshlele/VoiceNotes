@@ -5,4 +5,5 @@
     <color name="colorAccent">#D81B60</color>
     <color name="colorOff">#ffffff</color>
     <color name="colorOn">#0075c7</color>
+    <color name="colorOnLight">#459ad6</color>
 </resources>

@@ -5,13 +5,18 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
-import android.widget.RelativeLayout;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 
 public class RecordingListAdapter extends RecyclerView.Adapter<RecordingListAdapter.ViewHolder> {
     //list of recordings to be shown
@@ -34,7 +39,7 @@ public class RecordingListAdapter extends RecyclerView.Adapter<RecordingListAdap
     @NonNull
     @Override
     public RecordingListAdapter.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        RelativeLayout recordingItem = (RelativeLayout) LayoutInflater.from(context).inflate(R.layout.recording_item,parent,false);
+        LinearLayout recordingItem = (LinearLayout) LayoutInflater.from(context).inflate(R.layout.recording_item,parent,false);
         ViewHolder v = new ViewHolder(recordingItem);
         return v;
     }
@@ -43,14 +48,35 @@ public class RecordingListAdapter extends RecyclerView.Adapter<RecordingListAdap
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
 
         Recording r = recordingArrayList.get(position);
-        //TODO: format date and size
         holder.recordingNameText.setText(r.getName());
-        holder.recordingDateText.setText(String.valueOf(r.getTimeMilis()));
-        holder.recordingDurText.setText(r.getDurationSec() + " sec");
-        holder.recordingSizeText.setText(r.getSizeMB() + " MB");
+
+        //format and set recording time and date
+        Date d = new Date(r.getTimeMilis());
+        DateFormat format = new SimpleDateFormat("EEE, MMM d, ''yy",Locale.getDefault());
+        String dateText = format.format(d);
+        holder.recordingDateText.setText(dateText);
+
+        //format and set recording duration
+        String duration = String.format(Locale.US,"%02d:%02d",
+                TimeUnit.SECONDS.toMinutes(r.getDurationSec()),
+                r.getDurationSec() - TimeUnit.MINUTES.toSeconds(TimeUnit.SECONDS.toMinutes(r.getDurationSec()))
+        );
+        holder.recordingDurText.setText(duration);
+
+        //format and set recording size
+        String sizeText = "";
+        if(r.getSizeMB() < 1){
+            sizeText = (int)(r.getSizeMB() * 1000) + " KB";
+        }
+        else if(r.getSizeMB() > 1000){
+            sizeText = (int)r.getSizeMB() + " GB";
+        }
+        else{
+            sizeText = (int)r.getSizeMB() + " MB";
+        }
+        holder.recordingSizeText.setText(sizeText);
 
     }
-
 
     @Override
     public int getItemCount() {
