@@ -1,6 +1,7 @@
 package com.example.voicerecorder;
 
 import android.content.Context;
+import android.graphics.Typeface;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -96,6 +97,14 @@ public class RecordingListAdapter extends RecyclerView.Adapter<RecordingListAdap
             recordingSizeText = itemView.findViewById(R.id.recording_size_text);
             recordingEditBtn = itemView.findViewById(R.id.edit_name_btn);
             recordingDeleteBtn = itemView.findViewById(R.id.delete_btn);
+            //set custom font
+            Typeface nunitoReg = Typeface.createFromAsset(context.getAssets(), "NunitoSans-Regular.ttf");
+            Typeface nunitoBold = Typeface.createFromAsset(context.getAssets(), "NunitoSans-Bold.ttf");
+            recordingNameText.setTypeface(nunitoBold);
+            recordingDateText.setTypeface(nunitoReg);
+            recordingDurText.setTypeface(nunitoReg);
+            recordingSizeText.setTypeface(nunitoReg);
+
         }
     }
 }

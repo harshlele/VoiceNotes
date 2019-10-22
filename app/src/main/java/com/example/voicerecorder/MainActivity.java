@@ -16,6 +16,7 @@ import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.Typeface;
 import android.graphics.drawable.BitmapDrawable;
 import android.media.AudioAttributes;
 import android.media.MediaPlayer;
@@ -138,6 +139,11 @@ public class MainActivity extends AppCompatActivity{
         playPauseBtn = findViewById(R.id.play_pause_btn);
         playPauseBtn.setVisibility(View.GONE);
         showRecordingsBtn = findViewById(R.id.show_recordings_btn);
+
+        //set custom fonts for the recording name and time textviews
+        Typeface nunitoReg = Typeface.createFromAsset(getAssets(), "NunitoSans-Regular.ttf");
+        recordingNameText.setTypeface(nunitoReg);
+        recordingTimeText.setTypeface(nunitoReg);
 
         //initialise db helper only once in onCreate and keep it open until the activity is open
         recordingDBHelper = new RecordingDBHelper(getApplicationContext());
