@@ -23,10 +23,12 @@ public class RecordingListAdapter extends RecyclerView.Adapter<RecordingListAdap
     //list of recordings to be shown
     private ArrayList<Recording> recordingArrayList;
     private Context context;
+    private RecordingClickedListener recordingClickedListener;
 
-    public RecordingListAdapter(ArrayList<Recording> recordingArrayList, Context context) {
+    public RecordingListAdapter(ArrayList<Recording> recordingArrayList, Context context,RecordingClickedListener listener) {
         this.recordingArrayList = recordingArrayList;
         this.context = context;
+        this.recordingClickedListener = listener;
     }
 
     public ArrayList<Recording> getRecordingArrayList() {
@@ -76,6 +78,13 @@ public class RecordingListAdapter extends RecyclerView.Adapter<RecordingListAdap
             sizeText = (int)r.getSizeMB() + " MB";
         }
         holder.recordingSizeText.setText(sizeText);
+        //use the interface to send the clicked Recording object to RecordingActivity
+        holder.rootView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                recordingClickedListener.onClicked(r);
+            }
+        });
 
     }
 
@@ -88,6 +97,7 @@ public class RecordingListAdapter extends RecyclerView.Adapter<RecordingListAdap
 
         private TextView recordingNameText, recordingDateText,recordingDurText,recordingSizeText;
         private ImageView recordingEditBtn,recordingDeleteBtn;
+        private LinearLayout rootView;
 
         public ViewHolder(@NonNull View itemView) {
             super(itemView);
@@ -97,6 +107,8 @@ public class RecordingListAdapter extends RecyclerView.Adapter<RecordingListAdap
             recordingSizeText = itemView.findViewById(R.id.recording_size_text);
             recordingEditBtn = itemView.findViewById(R.id.edit_name_btn);
             recordingDeleteBtn = itemView.findViewById(R.id.delete_btn);
+            rootView = (LinearLayout) itemView;
+
             //set custom font
             Typeface nunitoReg = Typeface.createFromAsset(context.getAssets(), "NunitoSans-Regular.ttf");
             Typeface nunitoBold = Typeface.createFromAsset(context.getAssets(), "NunitoSans-Bold.ttf");

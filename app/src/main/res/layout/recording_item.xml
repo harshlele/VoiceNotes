@@ -9,6 +9,7 @@
     android:foreground="?android:selectableItemBackground"
     android:background="@android:color/white"
     android:orientation="vertical"
+    android:id="@+id/root_view"
     >
 
         <RelativeLayout android:layout_width="match_parent"

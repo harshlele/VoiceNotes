@@ -8,10 +8,53 @@
     android:background="@color/colorOn"
     >
 
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:textStyle="bold"
+        android:text=""
+        android:layout_marginTop="48dp"
+        android:textAppearance="@style/TextAppearance.AppCompat.Large"
+        android:textColor="@color/colorOff"
+        android:id="@+id/current_recording_name"
+        />
+
+    <com.ohoussein.playpause.PlayPauseView
+        android:id="@+id/play_pause_btn"
+        android:layout_width="96dp"
+        android:layout_height="96dp"
+        android:clickable="true"
+        android:focusable="true"
+        android:foreground="?android:selectableItemBackground"
+        android:layout_centerHorizontal="true"
+        android:layout_below="@+id/current_recording_name"
+        android:layout_marginTop="48dp"
+        android:layout_marginBottom="32dp"
+        app:fill_color="@android:color/white"
+        app:pause_bg="@color/colorOn"
+        app:play_bg="@color/colorOn"
+
+        />
+
+    <androidx.appcompat.widget.AppCompatSeekBar
+        android:id="@+id/seek_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/play_pause_btn"
+        android:layout_marginBottom="16dp"
+        android:progressTint="@color/colorOnLight"
+        android:thumbTint="@color/colorOff" />
+
+
+
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recordings_list"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_below="@+id/seek_bar"
+
         />
 
 </RelativeLayout>
