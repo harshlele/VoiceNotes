@@ -10,6 +10,7 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Bitmap;
@@ -120,6 +121,9 @@ public class MainActivity extends AppCompatActivity{
     private RecordingTaskResultsListener recordingTaskResultsListener;
     //database connection, opened once and closed only when activity is destroyed.
     private RecordingDBHelper recordingDBHelper;
+
+    //if playback was going on and activity was switched/restarted, this is the current progress
+    private int playbackPausedProgress = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -397,7 +401,13 @@ public class MainActivity extends AppCompatActivity{
         onPreparedListener = new MediaPlayer.OnPreparedListener() {
             @Override
             public void onPrepared(MediaPlayer mediaPlayer) {
-                mediaPlayer.start();
+                if(!isPlayerPaused) mediaPlayer.start();
+                //if the player is paused, but mediaplayer is being prepared again, this means that the activity was restarted
+                //so just seek it to the progress
+                else{
+                    mediaPlayer.seekTo(playbackPausedProgress);
+                    playbackPausedProgress = 0;
+                }
             }
         };
 
@@ -792,6 +802,39 @@ public class MainActivity extends AppCompatActivity{
         mediaPlayer.setOnPreparedListener(onPreparedListener);
         mediaPlayer.setOnCompletionListener(onCompletionListener);
         mediaPlayer.setOnErrorListener(onErrorListener);
+
+        //check if there's a previous playback that was paused
+        SharedPreferences pref = getApplicationContext().getSharedPreferences("PLAYBACK_PAUSED_PREFS",MODE_PRIVATE);
+        if(pref.getBoolean("PLAYBACK_PAUSED",false)){
+
+            Log.d(TAG, "onResume: PLAYBACK WAS PAUSED");
+
+            //reload the file and prepare the MediaPlayer
+            String notePath = pref.getString("NOTE_NAME","");
+            int position = pref.getInt("NOTE_PROG",0);
+            if(!notePath.equals("")) {
+                try {
+                    FileInputStream inputStream = new FileInputStream(notePath);
+                    mediaPlayer.setDataSource(inputStream.getFD());
+                    mediaPlayer.prepareAsync();
+                    inputStream.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    Toast.makeText(getApplicationContext(), "Error on playback", Toast.LENGTH_LONG).show();
+                }
+            }
+            //store the progress, MediaPlayer is set to this position in onPrepared
+            playbackPausedProgress = position;
+
+            isPlayerPaused = true;
+            //clear the SharedPreferences
+            SharedPreferences.Editor editor = pref.edit();
+            editor.remove("NOTE_NAME");
+            editor.remove("NOTE_PROG");
+            editor.remove("PLAYBACK_PAUSED");
+            editor.commit();
+        }
+
     }
 
     @Override
@@ -815,7 +858,45 @@ public class MainActivity extends AppCompatActivity{
     }
 
 
+    @Override
+    protected void onPause() {
+        super.onPause();
 
+        //if recording is being played, pause it and store file and progress details so it can be played back from the current position
+        if(isPlayingRecording || isPlayerPaused) {
+
+            //is the player was paused by the user, the UI change has already happened
+            if(!isPlayerPaused) {
+                //make the new recording button and previous recordings visible again
+                newRecordingBtn.setVisibility(View.VISIBLE);
+                enableNewRecordingBtn(true);
+                showRecordingsBtn.setVisibility(View.VISIBLE);
+                //set elevation back to the default
+                playPauseBtn.setElevation(6f);
+                playPauseBtn.change(true);
+
+
+                recordingNameText.setTextColor(ContextCompat.getColor(MainActivity.this, R.color.colorOn));
+                recordingTimeText.setTextColor(ContextCompat.getColor(MainActivity.this, R.color.colorOn));
+                animateActivityBackground(R.color.colorOn, R.color.colorOff, ANIMATION_ORIGIN.ANIMATION_ORIGIN_PLAY_BTN);
+                //pause playback
+                if (mediaPlayer.isPlaying()) {
+                    mediaPlayer.pause();
+                    isPlayerPaused = true;
+                }
+
+                isPlayingRecording = false;
+            }
+
+            //store filename and progres in SharedPreferences
+            SharedPreferences pref = getApplicationContext().getSharedPreferences("PLAYBACK_PAUSED_PREFS",MODE_PRIVATE);
+            SharedPreferences.Editor editor = pref.edit();
+            editor.putBoolean("PLAYBACK_PAUSED",true);
+            editor.putString("NOTE_NAME",recordingPath);
+            editor.putInt("NOTE_PROG",mediaPlayer.getCurrentPosition());
+            editor.commit();
+        }
+    }
 }
 
 
