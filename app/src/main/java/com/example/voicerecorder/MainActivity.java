@@ -1,7 +1,6 @@
 package com.example.voicerecorder;
 
 import android.Manifest;
-import android.animation.Animator;
 import android.animation.ValueAnimator;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -73,7 +72,7 @@ public class MainActivity extends AppCompatActivity{
     //to check whether a recording is being played
     private boolean isPlayingRecording = false;
     //to check if the player has been started with a new file or if its being resumed from a pause
-    private boolean isPlayerResuming = false;
+    private boolean isPlayerPaused = false;
 
 
     //calendar to hold the recording start time
@@ -272,7 +271,7 @@ public class MainActivity extends AppCompatActivity{
                 recordingTimeText.setTextColor(ContextCompat.getColor(MainActivity.this,R.color.colorOff));
                 animateActivityBackground(R.color.colorOff,R.color.colorOn,ANIMATION_ORIGIN.ANIMATION_ORIGIN_PLAY_BTN);
                 //if the player has started new recording, set the source and prepare it
-                if(!isPlayerResuming) {
+                if(!isPlayerPaused) {
                     try {
 
                         FileInputStream inputStream = new FileInputStream(recordingPath);
@@ -283,13 +282,15 @@ public class MainActivity extends AppCompatActivity{
                         e.printStackTrace();
                         Toast.makeText(getApplicationContext(),"Error on playback",Toast.LENGTH_LONG).show();
                     }
-                    isPlayerResuming = false;
 
                 }
                 //if its resuming from paused playback, just start it
                 else {
                     mediaPlayer.start();
                 }
+
+                isPlayerPaused = false;
+
                 //start thread that will keep the recordingTimeText updated with the current position of recording playback
                 //(it ends when the playback is paused or is completed)
                 startPlayBackTimeThread();
@@ -308,7 +309,7 @@ public class MainActivity extends AppCompatActivity{
                 //pause playback
                 if(mediaPlayer.isPlaying()){
                     mediaPlayer.pause();
-                    isPlayerResuming = true;
+                    isPlayerPaused = true;
                 }
 
             }
@@ -324,17 +325,15 @@ public class MainActivity extends AppCompatActivity{
                     mediaPlayer.stop();
                     if(playBackTimeThread.isAlive()) playBackTimeThread.interrupt();
                     isPlayingRecording = false;
-                    isPlayerResuming = false;
+                    isPlayerPaused = false;
                 }
                 if(isRecording){
                     stopRecording();
                     isRecording = false;
                 }
-                //hide this view
-                view.setVisibility(View.GONE);
-                //animate activity background
-                //activity will be started after animation is over
-                animateActivityBackground(R.color.colorOff, R.color.colorOn,ANIMATION_ORIGIN.ANIMATION_ORIGIN_RECORDINGS_BTN);
+                //start RecordingsActivity
+                Intent i = new Intent(MainActivity.this,RecordingsActivity.class);
+                startActivity(i);
 
             }
         });
@@ -422,7 +421,7 @@ public class MainActivity extends AppCompatActivity{
                 playPauseBtn.setElevation(6f);
 
                 isPlayingRecording = false;
-                isPlayerResuming = false;
+                isPlayerPaused = false;
 
                 //stop the playback time thread
                 playBackTimeThread.interrupt();
@@ -568,25 +567,6 @@ public class MainActivity extends AppCompatActivity{
                 float currentRadius = ((float) (valueAnimator.getAnimatedValue())) * finalRadius;
                 c.drawCircle(centerX,centerY,currentRadius,p);
                 rootLayout.setBackground(new BitmapDrawable(getResources(),b));
-            }
-        });
-        valueAnimator.addListener(new Animator.AnimatorListener() {
-            @Override
-            public void onAnimationStart(Animator animator) {}
-            @Override
-            public void onAnimationCancel(Animator animator) {}
-            @Override
-            public void onAnimationRepeat(Animator animator) {}
-            @Override
-
-            //start the recordings activity when the animation ends
-            public void onAnimationEnd(Animator animator) {
-                if(origin == ANIMATION_ORIGIN.ANIMATION_ORIGIN_RECORDINGS_BTN){
-                    Intent i = new Intent(MainActivity.this,RecordingsActivity.class);
-                    startActivity(i);
-                    //cancel the default activity enter animation
-                    overridePendingTransition(0,0);
-                }
             }
         });
 
