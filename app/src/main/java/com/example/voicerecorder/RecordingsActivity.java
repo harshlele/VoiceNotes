@@ -9,6 +9,7 @@ import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.os.Handler;
 import android.provider.BaseColumns;
+import android.util.Log;
 import android.view.View;
 import android.widget.SeekBar;
 import android.widget.TextView;
@@ -207,27 +208,37 @@ public class RecordingsActivity extends AppCompatActivity {
 
                 SQLiteDatabase db = recordingDBHelper.getReadableDatabase();
                 //get the entire table
-                Cursor cursor = db.rawQuery("select * from " + RecordingDBHelper.RecordingDBSchema.TABLE_NAME,null);
+                Cursor cursor = db.rawQuery("SELECT * FROM " + RecordingDBHelper.RecordingDBSchema.TABLE_NAME,null);
 
                 ArrayList<Recording> recordingArrayList = new ArrayList<>();
+                //list of ids of files that are not present. these will be deleted
+                ArrayList<String> deleteList = new ArrayList<>();
+
                 //create objects and add them to the arraylist
                 while(cursor.moveToNext()){
 
-                    Recording r = new Recording();
-                    r.setId(cursor.getLong(cursor.getColumnIndex(BaseColumns._ID)));
-                    r.setName(cursor.getString(cursor.getColumnIndex(RecordingDBHelper.RecordingDBSchema.COLUMN_NAME)));
-                    r.setDurationSec(cursor.getInt(cursor.getColumnIndex(RecordingDBHelper.RecordingDBSchema.COLUMN_DURATION_SEC)));
-                    r.setSizeMB(cursor.getFloat(cursor.getColumnIndex(RecordingDBHelper.RecordingDBSchema.COLUMN_SIZE_MB)));
-                    r.setTimeMilis(cursor.getLong(cursor.getColumnIndex(RecordingDBHelper.RecordingDBSchema.COLUMN_TIME_MILIS)));
+                    //check if the file actually exists, only then add it to the list
+                    String filePath = getVoiceNotesDir() + "/" + cursor.getString(cursor.getColumnIndex(RecordingDBHelper.RecordingDBSchema.COLUMN_NAME));
+                    File f = new File(filePath);
 
-                    recordingArrayList.add(r);
+                    if(f != null && f.exists()) {
+                        Recording r = new Recording();
+                        r.setId(cursor.getLong(cursor.getColumnIndex(BaseColumns._ID)));
+                        r.setName(cursor.getString(cursor.getColumnIndex(RecordingDBHelper.RecordingDBSchema.COLUMN_NAME)));
+                        r.setDurationSec(cursor.getInt(cursor.getColumnIndex(RecordingDBHelper.RecordingDBSchema.COLUMN_DURATION_SEC)));
+                        r.setSizeMB(cursor.getFloat(cursor.getColumnIndex(RecordingDBHelper.RecordingDBSchema.COLUMN_SIZE_MB)));
+                        r.setTimeMilis(cursor.getLong(cursor.getColumnIndex(RecordingDBHelper.RecordingDBSchema.COLUMN_TIME_MILIS)));
 
+                        recordingArrayList.add(r);
+                    }
+                    //if the file doesn't exist, add it to a list of row ids for deletion
+                    else{
+                        deleteList.add(String.valueOf(cursor.getLong(cursor.getColumnIndex(BaseColumns._ID))));
+                    }
 
                 }
-
                 cursor.close();
 
-                db.close();
                 //add them to recyclerview
                 handler.post(new Runnable() {
                     @Override
@@ -236,6 +247,24 @@ public class RecordingsActivity extends AppCompatActivity {
                         recordingsList.setAdapter(adapter);
                     }
                 });
+                // if there are db rows where the file doesn't exist, delete those rows
+                if(!deleteList.isEmpty()) {
+                    //create query from deleteList
+                    String deleteQuery = "DELETE FROM " + RecordingDBHelper.RecordingDBSchema.TABLE_NAME + " WHERE ";
+                    for (String id : deleteList) {
+                        deleteQuery += " _id=" + id;
+
+                        if (deleteList.indexOf(id) != (deleteList.size() - 1)) {
+                            deleteQuery += " OR";
+                        }
+                    }
+                    //log query just in case, for debugging
+                    Log.d(TAG, "run: NON-EXISTING FILE DELETE QUERY: " + deleteQuery);
+                    Cursor c = db.rawQuery(deleteQuery, null);
+                    c.close();
+                }
+                //close the db
+                db.close();
             }
         });
 
