@@ -43,4 +43,5 @@ dependencies {
     //library to debug the database from browser
     debugImplementation 'com.amitshekhar.android:debug-db:1.0.6'
 
+    implementation 'com.google.code.gson:gson:2.8.6'
 }

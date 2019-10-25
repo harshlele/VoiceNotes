@@ -1,5 +1,6 @@
 package com.example.voicerecorder;
 
+import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Typeface;
@@ -18,6 +19,7 @@ import androidx.appcompat.widget.AppCompatSeekBar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.gson.Gson;
 import com.ohoussein.playpause.PlayPauseView;
 
 import java.io.File;
@@ -46,6 +48,7 @@ public class RecordingsActivity extends AppCompatActivity {
     //DB helper to do SQL transactions
     private RecordingDBHelper recordingDBHelper;
 
+    //interface to get click events from RecordingListAdapter
     private RecordingClickedListener recordingClickedListener;
     //media player and listeners
     private MediaPlayer mediaPlayer;
@@ -56,6 +59,8 @@ public class RecordingsActivity extends AppCompatActivity {
     private Recording currentPlayingRecording;
     //thread that updates seekbar to current position
     private Thread playBackTimeThread;
+    //if activity was switched while playback was ongoing, this is the current progress of playback
+    private int playbackPausedPosition = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -87,14 +92,9 @@ public class RecordingsActivity extends AppCompatActivity {
         recordingClickedListener = new RecordingClickedListener() {
             @Override
             public void onClicked(Recording recording) {
-                //if something is playing, stop it
-                if(isPlaying){
-                    isPlaying = false;
-                    mediaPlayer.stop();
-                }
                 //reset mediaplayer
                 mediaPlayer.reset();
-
+                //change UI
                 playPauseBtn.change(false);
                 currentRecordingText.setText(recording.getName());
 
@@ -112,10 +112,12 @@ public class RecordingsActivity extends AppCompatActivity {
                 }
             }
         };
+
         //click listener for play/pause button
         playPauseBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+
                 if(isPlaying){
 
                     if(!isPlayerPaused) {
@@ -175,14 +177,24 @@ public class RecordingsActivity extends AppCompatActivity {
         onPreparedListener = new MediaPlayer.OnPreparedListener() {
             @Override
             public void onPrepared(MediaPlayer mediaPlayer) {
-                seekBar.setProgress(0);
-                seekBar.setMax(mediaPlayer.getDuration());
-
-                mediaPlayer.start();
-
-                startPlaybackTimeThread();
-                isPlaying = true;
-
+                if(!isPlayerPaused){
+                    //set mediaplayer progress
+                    seekBar.setProgress(0);
+                    seekBar.setMax(mediaPlayer.getDuration());
+                    //start playback
+                    mediaPlayer.start();
+                    //start thread to update seekbar with mediaplayer progress
+                    startPlaybackTimeThread();
+                    isPlaying = true;
+                }
+                //if the player was paused before preparing, it means that the activity was switched
+                else{
+                    seekBar.setMax(mediaPlayer.getDuration());
+                    seekBar.setProgress(playbackPausedPosition);
+                    mediaPlayer.seekTo(playbackPausedPosition);
+                    isPlaying = true;
+                    playbackPausedPosition = 0;
+                }
             }
         };
     }
@@ -270,16 +282,83 @@ public class RecordingsActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onPause() {
+        super.onPause();
+        //if playback is ongoing, save the recording and progress details
+        if(isPlaying || isPlayerPaused){
+            //if the user paused the playback, the UI changes have already happened
+            if(!isPlayerPaused){
+                mediaPlayer.pause();
+                playPauseBtn.change(true);
+                isPlayerPaused = true;
+                playBackTimeThread.interrupt();
+            }
+
+            //store file name and progress
+            SharedPreferences pref = getApplicationContext().getSharedPreferences("NOTE_PAUSED_PREFS",MODE_PRIVATE);
+            SharedPreferences.Editor editor = pref.edit();
+            editor.putBoolean("NOTE_PAUSED",true);
+
+            //use gson to convert Recording object into string
+            Gson gson = new Gson();
+            String obj = gson.toJson(currentPlayingRecording);
+            editor.putString("NOTE_OBJ",obj);
+            //store current position
+            editor.putInt("NOTE_PROG",mediaPlayer.getCurrentPosition());
+            editor.commit();
+        }
+    }
+
+    @Override
     protected void onResume() {
         super.onResume();
         //initialise mediaplayer in onResume because it has to be re-initialised every time the user comes back to the activity
         mediaPlayer = new MediaPlayer();
         mediaPlayer.setAudioAttributes(new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build());
-        //set the listeners(defined in onCreate)
+        //set the listeners(defined in defineMediaPlayerListeners)
         mediaPlayer.setOnPreparedListener(onPreparedListener);
         mediaPlayer.setOnCompletionListener(onCompletionListener);
         mediaPlayer.setOnErrorListener(onErrorListener);
+
+        //if a previous playback was paused, load it and set the progress
+        SharedPreferences pref = getApplicationContext().getSharedPreferences("NOTE_PAUSED_PREFS",MODE_PRIVATE);
+        if(pref.getBoolean("NOTE_PAUSED",false)){
+
+            //use gson to get the stored Recording object
+            Gson gson = new Gson();
+            String obj = pref.getString("NOTE_OBJ","");
+            currentPlayingRecording = gson.fromJson(obj,Recording.class);
+
+            //prepare mediaplayer
+            if(currentPlayingRecording != null) {
+                String recordingPath = getVoiceNotesDir().getAbsolutePath() + "/" + currentPlayingRecording.getName();
+                try {
+                    FileInputStream inputStream = new FileInputStream(recordingPath);
+                    mediaPlayer.setDataSource(inputStream.getFD());
+                    mediaPlayer.prepareAsync();
+                    inputStream.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    Toast.makeText(getApplicationContext(), "Error on playback", Toast.LENGTH_LONG).show();
+                }
+            }
+
+            //save the current progress
+            playbackPausedPosition = pref.getInt("NOTE_PROG",0);
+
+            isPlayerPaused = true;
+            isPlaying = true;
+
+            //clear the SharedPreferences
+            SharedPreferences.Editor editor = pref.edit();
+            editor.remove("NOTE_PAUSED");
+            editor.remove("NOTE_OBJ");
+            editor.remove("NOTE_PROG");
+            editor.commit();
+        }
+
     }
+
 
 
     //get the directory where voice notes are stored
