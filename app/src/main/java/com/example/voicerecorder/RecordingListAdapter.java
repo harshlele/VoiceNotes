@@ -16,6 +16,7 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.ListIterator;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 
@@ -23,12 +24,12 @@ public class RecordingListAdapter extends RecyclerView.Adapter<RecordingListAdap
     //list of recordings to be shown
     private ArrayList<Recording> recordingArrayList;
     private Context context;
-    private RecordingClickedListener recordingClickedListener;
+    private RecordingListListener recordingListListener;
 
-    public RecordingListAdapter(ArrayList<Recording> recordingArrayList, Context context,RecordingClickedListener listener) {
+    RecordingListAdapter(ArrayList<Recording> recordingArrayList, Context context, RecordingListListener listener) {
         this.recordingArrayList = recordingArrayList;
         this.context = context;
-        this.recordingClickedListener = listener;
+        this.recordingListListener = listener;
     }
 
     public ArrayList<Recording> getRecordingArrayList() {
@@ -37,6 +38,23 @@ public class RecordingListAdapter extends RecyclerView.Adapter<RecordingListAdap
 
     public void setRecordingArrayList(ArrayList<Recording> recordingArrayList) {
         this.recordingArrayList = recordingArrayList;
+    }
+
+    //remove a single recording
+    public int removeRecording(long id){
+        ListIterator<Recording> iterator = recordingArrayList.listIterator();
+        int index = -1;
+        while(iterator.hasNext()){
+            Recording r = iterator.next();
+            if (r.getId() == id){
+                index = recordingArrayList.indexOf(r);
+                iterator.remove();
+            }
+        }
+
+        if(recordingArrayList.size() <= 0) recordingListListener.onListEmpty();
+        //return the position of the removed item
+        return index;
     }
 
     @NonNull
@@ -78,11 +96,20 @@ public class RecordingListAdapter extends RecyclerView.Adapter<RecordingListAdap
             sizeText = (int)r.getSizeMB() + " MB";
         }
         holder.recordingSizeText.setText(sizeText);
+
         //use the interface to send the clicked Recording object to RecordingActivity
         holder.rootView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                recordingClickedListener.onClicked(r);
+                recordingListListener.onClicked(r);
+            }
+        });
+
+        //use the interface to send clicked object to RecordingActivity
+        holder.recordingDeleteBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                recordingListListener.onDeleteBtnClicked(r);
             }
         });
 

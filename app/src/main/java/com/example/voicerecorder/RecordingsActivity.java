@@ -1,5 +1,6 @@
 package com.example.voicerecorder;
 
+import android.content.DialogInterface;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
@@ -15,6 +16,7 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.AppCompatSeekBar;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -50,7 +52,7 @@ public class RecordingsActivity extends AppCompatActivity {
     private RecordingDBHelper recordingDBHelper;
 
     //interface to get click events from RecordingListAdapter
-    private RecordingClickedListener recordingClickedListener;
+    private RecordingListListener recordingListListener;
     //media player and listeners
     private MediaPlayer mediaPlayer;
     private MediaPlayer.OnCompletionListener onCompletionListener;
@@ -90,7 +92,7 @@ public class RecordingsActivity extends AppCompatActivity {
         loadRecordingsList();
 
         //listener for when a recording list item is clicked
-        recordingClickedListener = new RecordingClickedListener() {
+        recordingListListener = new RecordingListListener() {
             @Override
             public void onClicked(Recording recording) {
                 //reset mediaplayer
@@ -111,6 +113,47 @@ public class RecordingsActivity extends AppCompatActivity {
                     e.printStackTrace();
                     Toast.makeText(getApplicationContext(),"Error on playback",Toast.LENGTH_LONG).show();
                 }
+            }
+
+            //listener for when the delete button on a recording is clicked
+            @Override
+            public void onDeleteBtnClicked(Recording recording) {
+                //show a dialog asking for confirmation from the user
+                AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(RecordingsActivity.this,R.style.DialogTheme);
+                alertDialogBuilder.setMessage("Delete " + recording.getName() + " ?" );
+                //positive button
+                alertDialogBuilder.setPositiveButton("yes",
+                                new DialogInterface.OnClickListener() {
+                                    @Override
+                                    public void onClick(DialogInterface arg0, int arg1) {
+                                        //remove the recording from the list and get its position
+                                        int i = adapter.removeRecording(recording.getId());
+                                        //animate item removal
+                                        if(i != -1) adapter.notifyItemRemoved(i);
+                                        //delete the actual recording file
+                                        deleteRecording(recording);
+                                    }
+                                });
+                //if the user presses no, just dismiss the dialog
+                alertDialogBuilder.setNegativeButton("No",new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.dismiss();
+                    }
+                });
+
+                AlertDialog alertDialog = alertDialogBuilder.create();
+                alertDialog.show();
+            }
+
+            @Override
+            public void onEditBtnClicked(Recording recording) {
+                //TODO: DO THIS
+            }
+            //if the list becomes empty, show a "No Notes" TextView
+            @Override
+            public void onListEmpty() {
+                findViewById(R.id.no_rec_text).setVisibility(View.VISIBLE);
             }
         };
 
@@ -243,8 +286,16 @@ public class RecordingsActivity extends AppCompatActivity {
                 handler.post(new Runnable() {
                     @Override
                     public void run() {
-                        adapter = new RecordingListAdapter(recordingArrayList,RecordingsActivity.this,recordingClickedListener);
-                        recordingsList.setAdapter(adapter);
+                        //textview to show if there are no recordings
+                        TextView noRecText = findViewById(R.id.no_rec_text);
+                        if(recordingArrayList.size() > 0) {
+                            adapter = new RecordingListAdapter(recordingArrayList, RecordingsActivity.this, recordingListListener);
+                            recordingsList.setAdapter(adapter);
+                            noRecText.setVisibility(View.GONE);
+                        }
+                        else{
+                            noRecText.setVisibility(View.VISIBLE);
+                        }
                     }
                 });
                 // if there are db rows where the file doesn't exist, delete those rows
@@ -269,6 +320,22 @@ public class RecordingsActivity extends AppCompatActivity {
         });
 
          getRecordingsThread.start();
+    }
+
+    //delete a recording file
+    //the database entry will be removed the next time the list is loaded
+    private void deleteRecording(Recording r){
+        //if the file is being played, stop playback
+        if(currentPlayingRecording.getId() == r.getId()){
+            if(mediaPlayer.isPlaying()) mediaPlayer.stop();
+            mediaPlayer.reset();
+        }
+        //delete file
+        File f = new File(getVoiceNotesDir() + "/" + r.getName());
+        if(f != null && f.exists()) {
+            boolean b = f.delete();
+            Log.d(TAG, "deleteRecording: Delete successful: " + b);
+        }
     }
 
     //start a thread that updates the seekbar to the current position of the playback
