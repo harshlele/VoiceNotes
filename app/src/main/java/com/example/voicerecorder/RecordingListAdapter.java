@@ -56,6 +56,18 @@ public class RecordingListAdapter extends RecyclerView.Adapter<RecordingListAdap
         //return the position of the removed item
         return index;
     }
+    //edit recording list item
+    public int editRecordingItem(long id, String name){
+        int index = -1;
+        for (Recording r:recordingArrayList){
+            if(r.getId() == id){
+                r.setName(name);
+                index = recordingArrayList.indexOf(r);
+            }
+        }
+        //return the index
+        return index;
+    }
 
     @NonNull
     @Override
@@ -110,6 +122,13 @@ public class RecordingListAdapter extends RecyclerView.Adapter<RecordingListAdap
             @Override
             public void onClick(View view) {
                 recordingListListener.onDeleteBtnClicked(r);
+            }
+        });
+        //use the interface to send clicked object to RecordingActivity
+        holder.recordingEditBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                recordingListListener.onEditBtnClicked(r);
             }
         });
 

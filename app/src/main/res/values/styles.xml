@@ -6,7 +6,7 @@
         <item name="colorPrimary">@color/colorPrimary</item>
         <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
 
-        <item name="colorAccent">@color/colorAccent</item>
+        <item name="colorAccent">@color/colorOn</item>
         <item name="android:navigationBarColor">@color/colorOn</item>
     </style>
     
@@ -17,6 +17,8 @@
     <style name="DialogTheme" parent="ThemeOverlay.AppCompat.Dialog">
         <item name="android:textColorPrimary">@color/colorOn</item>
         <item name="android:textColor">@color/colorOn</item>
+        <item name="android:textCursorDrawable">@null</item>
+
     </style>
 
 </resources>

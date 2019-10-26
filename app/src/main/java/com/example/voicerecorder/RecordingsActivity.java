@@ -12,6 +12,8 @@ import android.os.Handler;
 import android.provider.BaseColumns;
 import android.util.Log;
 import android.view.View;
+import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -19,6 +21,8 @@ import android.widget.Toast;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.AppCompatSeekBar;
+import androidx.core.content.ContextCompat;
+import androidx.core.graphics.drawable.DrawableCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -119,10 +123,10 @@ public class RecordingsActivity extends AppCompatActivity {
             @Override
             public void onDeleteBtnClicked(Recording recording) {
                 //show a dialog asking for confirmation from the user
-                AlertDialog.Builder alertDialogBuilder = new AlertDialog.Builder(RecordingsActivity.this,R.style.DialogTheme);
-                alertDialogBuilder.setMessage("Delete " + recording.getName() + " ?" );
+                AlertDialog.Builder deleteDialogBuilder = new AlertDialog.Builder(RecordingsActivity.this,R.style.DialogTheme);
+                deleteDialogBuilder.setMessage("Delete " + recording.getName() + " ?" );
                 //positive button
-                alertDialogBuilder.setPositiveButton("yes",
+                deleteDialogBuilder.setPositiveButton("yes",
                                 new DialogInterface.OnClickListener() {
                                     @Override
                                     public void onClick(DialogInterface arg0, int arg1) {
@@ -135,20 +139,73 @@ public class RecordingsActivity extends AppCompatActivity {
                                     }
                                 });
                 //if the user presses no, just dismiss the dialog
-                alertDialogBuilder.setNegativeButton("No",new DialogInterface.OnClickListener() {
+                deleteDialogBuilder.setNegativeButton("No",new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         dialog.dismiss();
                     }
                 });
 
-                AlertDialog alertDialog = alertDialogBuilder.create();
+                AlertDialog alertDialog = deleteDialogBuilder.create();
                 alertDialog.show();
             }
 
+            //listener for when edit button is clicked
             @Override
             public void onEditBtnClicked(Recording recording) {
-                //TODO: DO THIS
+
+                //show a dialog with a edittext
+                AlertDialog.Builder renameDialogBuilder = new AlertDialog.Builder(RecordingsActivity.this,R.style.DialogTheme);
+                renameDialogBuilder.setTitle("Rename " + recording.getName());
+                //add edittext
+                EditText input = new EditText(RecordingsActivity.this);
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.MATCH_PARENT);
+                //set input to a single line
+                input.setMaxLines(1);
+                input.setLines(1);
+                input.setSingleLine();
+                //change edittext colour
+                DrawableCompat.setTint(input.getBackground(), ContextCompat.getColor(RecordingsActivity.this, R.color.colorOn));
+
+                input.setLayoutParams(lp);
+                renameDialogBuilder.setView(input);
+
+                //ok button
+                renameDialogBuilder.setPositiveButton("OK",
+                        new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface arg0, int arg1) {
+                                String name = input.getText().toString();
+                                //if there's no .wav extension, add one
+                                if(name.length() > 4){
+                                    String last4 = name.substring(name.length() - 4);
+                                    if(!last4.equals(".wav")){
+                                        name = name + ".wav";
+                                    }
+                                }
+                                else{
+                                    name = name + ".wav";
+                                }
+                                //edit list item
+                                int i = adapter.editRecordingItem(recording.getId(),name);
+                                //animate item change
+                                if(i != -1) adapter.notifyItemChanged(i);
+
+                            }
+                        });
+                //if the user presses cancel, just dismiss the dialog
+                renameDialogBuilder.setNegativeButton("CANCEL",new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.dismiss();
+                    }
+                });
+
+                AlertDialog alertDialog = renameDialogBuilder.create();
+                alertDialog.show();
+
             }
             //if the list becomes empty, show a "No Notes" TextView
             @Override
