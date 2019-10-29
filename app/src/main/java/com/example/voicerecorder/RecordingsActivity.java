@@ -33,6 +33,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Locale;
+import java.util.concurrent.TimeUnit;
 
 
 public class RecordingsActivity extends AppCompatActivity {
@@ -47,7 +49,8 @@ public class RecordingsActivity extends AppCompatActivity {
     private RecyclerView recordingsList;
     private PlayPauseView playPauseBtn;
     private AppCompatSeekBar seekBar;
-    private TextView currentRecordingText;
+    private TextView currentRecordingText,playbackProgressText;
+
 
     private RecordingListAdapter adapter;
     //handler to post UI updates from SQL thread to main thread
@@ -79,6 +82,7 @@ public class RecordingsActivity extends AppCompatActivity {
         playPauseBtn = findViewById(R.id.play_pause_btn);
         seekBar = findViewById(R.id.seek_bar);
         currentRecordingText = findViewById(R.id.current_recording_name);
+        playbackProgressText = findViewById(R.id.playback_prog_text);
 
         recordingsList.setLayoutManager(new LinearLayoutManager(this));
 
@@ -246,6 +250,12 @@ public class RecordingsActivity extends AppCompatActivity {
             @Override
             public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
                 mediaPlayer.seekTo(i);
+                //set the progress text
+                String progress = String.format(Locale.US,"%02d:%02d",
+                        TimeUnit.MILLISECONDS.toMinutes(i),
+                        TimeUnit.MILLISECONDS.toSeconds(i) - TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(i))
+                );
+                playbackProgressText.setText(progress);
             }
 
             @Override
@@ -268,6 +278,7 @@ public class RecordingsActivity extends AppCompatActivity {
                 isPlaying = false;
                 playPauseBtn.change(true);
                 currentRecordingText.setText("");
+                playbackProgressText.setText("");
             }
         };
 
@@ -286,6 +297,8 @@ public class RecordingsActivity extends AppCompatActivity {
                     //set mediaplayer progress
                     seekBar.setProgress(0);
                     seekBar.setMax(mediaPlayer.getDuration());
+                    //set progress text
+                    playbackProgressText.setText("00:00");
                     //start playback
                     mediaPlayer.start();
                     //start thread to update seekbar with mediaplayer progress
@@ -297,6 +310,13 @@ public class RecordingsActivity extends AppCompatActivity {
                     seekBar.setMax(mediaPlayer.getDuration());
                     seekBar.setProgress(playbackPausedPosition);
                     mediaPlayer.seekTo(playbackPausedPosition);
+                    //format and set the progress
+                    String currentProgress = String.format(Locale.US,"%02d:%02d",
+                            TimeUnit.MILLISECONDS.toMinutes(playbackPausedPosition),
+                            TimeUnit.MILLISECONDS.toSeconds(playbackPausedPosition) - TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(playbackPausedPosition))
+                    );
+                    playbackProgressText.setText(currentProgress);
+
                     isPlaying = true;
                     playbackPausedPosition = 0;
                 }
@@ -461,7 +481,14 @@ public class RecordingsActivity extends AppCompatActivity {
                     handler.post(new Runnable() {
                         @Override
                         public void run() {
-                            seekBar.setProgress(mediaPlayer.getCurrentPosition());
+                            int progress = mediaPlayer.getCurrentPosition();
+                            //set seekbar
+                            seekBar.setProgress(progress);
+                            //set progress text
+                            String progressText = String.format(Locale.US,"%02d:%02d",
+                                    TimeUnit.MILLISECONDS.toMinutes(progress),
+                                    TimeUnit.MILLISECONDS.toSeconds(progress) - TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(progress))
+                            );
                         }
                     });
                 }

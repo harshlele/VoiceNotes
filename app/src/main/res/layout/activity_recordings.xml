@@ -30,18 +30,30 @@
         android:layout_centerHorizontal="true"
         android:layout_below="@+id/current_recording_name"
         android:layout_marginTop="48dp"
-        android:layout_marginBottom="32dp"
+        android:layout_marginBottom="16dp"
         app:fill_color="@android:color/white"
         app:pause_bg="@color/colorOn"
         app:play_bg="@color/colorOn"
 
         />
 
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_below="@+id/play_pause_btn"
+        android:id="@+id/playback_prog_text"
+        android:textAppearance="@style/TextAppearance.AppCompat.Large"
+        android:text=""
+        android:textColor="@color/colorOff"
+        android:layout_marginBottom="16dp"
+        />
+
     <androidx.appcompat.widget.AppCompatSeekBar
         android:id="@+id/seek_bar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_below="@+id/play_pause_btn"
+        android:layout_below="@+id/playback_prog_text"
         android:layout_marginBottom="16dp"
         android:progressTint="@color/colorOnLight"
         android:thumbTint="@color/colorOff" />
