@@ -188,11 +188,15 @@ public class RecordingsActivity extends AppCompatActivity {
                                 else{
                                     name = name + ".wav";
                                 }
+                                //store the old name
+                                String oldName = recording.getName();
+
                                 //edit list item
                                 int i = adapter.editRecordingItem(recording.getId(),name);
                                 //animate item change
                                 if(i != -1) adapter.notifyItemChanged(i);
-
+                                //editRecording actually edits the filename and database entry
+                                editRecording(recording,oldName,name);
                             }
                         });
                 //if the user presses cancel, just dismiss the dialog
@@ -306,7 +310,7 @@ public class RecordingsActivity extends AppCompatActivity {
             @Override
             public void run() {
 
-                SQLiteDatabase db = recordingDBHelper.getReadableDatabase();
+                SQLiteDatabase db = recordingDBHelper.getWritableDatabase();
                 //get the entire table
                 Cursor cursor = db.rawQuery("SELECT * FROM " + RecordingDBHelper.RecordingDBSchema.TABLE_NAME,null);
 
@@ -368,8 +372,8 @@ public class RecordingsActivity extends AppCompatActivity {
                     }
                     //log query just in case, for debugging
                     Log.d(TAG, "run: NON-EXISTING FILE DELETE QUERY: " + deleteQuery);
-                    Cursor c = db.rawQuery(deleteQuery, null);
-                    c.close();
+                    db.execSQL(deleteQuery);
+
                 }
                 //close the db
                 db.close();
@@ -383,16 +387,63 @@ public class RecordingsActivity extends AppCompatActivity {
     //the database entry will be removed the next time the list is loaded
     private void deleteRecording(Recording r){
         //if the file is being played, stop playback
-        if(currentPlayingRecording.getId() == r.getId()){
+        if(currentPlayingRecording!= null && currentPlayingRecording.getId() == r.getId()){
             if(mediaPlayer.isPlaying()) mediaPlayer.stop();
             mediaPlayer.reset();
         }
         //delete file
-        File f = new File(getVoiceNotesDir() + "/" + r.getName());
+        File f = new File(getVoiceNotesDir().getAbsolutePath() + "/" + r.getName());
         if(f != null && f.exists()) {
             boolean b = f.delete();
             Log.d(TAG, "deleteRecording: Delete successful: " + b);
         }
+    }
+
+    //edit the recording wav file, and edit the database entry
+    private void editRecording(Recording r,String oldName,String newName){
+
+        Thread renameThread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+
+                boolean renameSuccess = false;
+
+                //rename the file
+                File f = new File(getVoiceNotesDir().getAbsolutePath() + "/" + oldName);
+                if(f != null && f.exists()){
+                    File f2 = new File(getVoiceNotesDir().getAbsolutePath() + "/" + newName);
+                    renameSuccess = f.renameTo(f2);
+                }
+                else{
+                    Log.d(TAG, "run: editRecording: FILE DOESNT EXIST: " + f.getAbsolutePath() );
+                }
+
+                //edit the database entry only if the file rename was successful
+                // (otherwise it will get deleted while loading the recordings list)
+                if(renameSuccess){
+                    Log.d(TAG, "run: rename success!");
+                    SQLiteDatabase db = recordingDBHelper.getWritableDatabase();
+
+                    String query = "UPDATE " + RecordingDBHelper.RecordingDBSchema.TABLE_NAME + " SET name=\"" + newName + "\" WHERE _id=" + r.getId();
+
+                    db.execSQL(query);
+                    db.close();
+
+                }
+
+                else {
+                    handler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            Toast.makeText(getApplicationContext(),"Rename failed", Toast.LENGTH_LONG).show();
+                        }
+                    });
+                }
+
+            }
+        });
+
+        renameThread.start();
     }
 
     //start a thread that updates the seekbar to the current position of the playback
