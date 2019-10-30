@@ -34,7 +34,7 @@
         app:fill_color="@android:color/white"
         app:pause_bg="@color/colorOn"
         app:play_bg="@color/colorOn"
-
+        android:transitionName="play_btn_transition"
         />
 
     <TextView

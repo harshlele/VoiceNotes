@@ -35,6 +35,7 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.core.app.ActivityOptionsCompat;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
 import androidx.core.content.ContextCompat;
@@ -337,7 +338,15 @@ public class MainActivity extends AppCompatActivity{
                 }
                 //start RecordingsActivity
                 Intent i = new Intent(MainActivity.this,RecordingsActivity.class);
-                startActivity(i);
+                //if the play button is visible, use it to transition
+                if(playPauseBtn.getVisibility() == View.VISIBLE){
+                    ActivityOptionsCompat options = ActivityOptionsCompat.
+                            makeSceneTransitionAnimation(MainActivity.this, playPauseBtn, "play_btn_transition");
+                    startActivity(i,options.toBundle());
+                }
+                else {
+                    startActivity(i);
+                }
 
             }
         });

@@ -55,6 +55,7 @@
         app:pause_bg="@color/colorOn"
         app:play_bg="@color/colorOn"
         android:elevation="6dp"
+        android:transitionName="play_btn_transition"
         />
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton

@@ -12,6 +12,11 @@
     
     <style name="AppTheme.Fullscreen" parent="AppTheme">
         <item name="android:windowFullscreen">true</item>
+
+        <!-- enable window content transitions -->
+        <item name="android:windowActivityTransitions">true</item>
+
+
     </style>
 
     <style name="DialogTheme" parent="ThemeOverlay.AppCompat.Dialog">
