@@ -16,7 +16,11 @@
         <!-- enable window content transitions -->
         <item name="android:windowActivityTransitions">true</item>
 
+    </style>
 
+    <style name="AppTheme.Fullscreen.Recordings" parent="AppTheme.Fullscreen">
+        <item name="android:windowEnterTransition">@android:transition/slide_top</item>
+        <item name="android:windowExitTransition">@android:transition/slide_bottom</item>
     </style>
 
     <style name="DialogTheme" parent="ThemeOverlay.AppCompat.Dialog">

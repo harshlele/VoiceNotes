@@ -103,6 +103,7 @@ public class RecordingsActivity extends AppCompatActivity {
         recordingListListener = new RecordingListListener() {
             @Override
             public void onClicked(Recording recording) {
+                Log.d(TAG, "onClicked: clicked!: " + recording.getName() );
                 //reset mediaplayer
                 mediaPlayer.reset();
                 //change UI
@@ -112,6 +113,7 @@ public class RecordingsActivity extends AppCompatActivity {
                 currentPlayingRecording = recording;
                 //prepare clicked recording
                 String recordingPath = getVoiceNotesDir().getAbsolutePath() + "/" + recording.getName();
+                Log.d(TAG, "onClicked: path: " + recordingPath);
                 try {
                     FileInputStream inputStream = new FileInputStream(recordingPath);
                     mediaPlayer.setDataSource(inputStream.getFD());
@@ -249,7 +251,7 @@ public class RecordingsActivity extends AppCompatActivity {
         seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
-                mediaPlayer.seekTo(i);
+                if(mediaPlayer != null) mediaPlayer.seekTo(i);
                 //set the progress text
                 String progress = String.format(Locale.US,"%02d:%02d",
                         TimeUnit.MILLISECONDS.toMinutes(i),
@@ -273,7 +275,7 @@ public class RecordingsActivity extends AppCompatActivity {
         onCompletionListener = new MediaPlayer.OnCompletionListener() {
             @Override
             public void onCompletion(MediaPlayer mediaPlayer) {
-                playBackTimeThread.interrupt();
+                if(playBackTimeThread!= null && playBackTimeThread.isAlive())playBackTimeThread.interrupt();
                 seekBar.setProgress(seekBar.getMax());
                 isPlaying = false;
                 playPauseBtn.change(true);
@@ -294,6 +296,7 @@ public class RecordingsActivity extends AppCompatActivity {
             @Override
             public void onPrepared(MediaPlayer mediaPlayer) {
                 if(!isPlayerPaused){
+                    Log.d(TAG, "onPrepared: prepared!");
                     //set mediaplayer progress
                     seekBar.setProgress(0);
                     seekBar.setMax(mediaPlayer.getDuration());
@@ -481,7 +484,8 @@ public class RecordingsActivity extends AppCompatActivity {
                     handler.post(new Runnable() {
                         @Override
                         public void run() {
-                            int progress = mediaPlayer.getCurrentPosition();
+                            int progress = 0;
+                            if(mediaPlayer != null) progress = mediaPlayer.getCurrentPosition();
                             //set seekbar
                             seekBar.setProgress(progress);
                             //set progress text
@@ -589,8 +593,6 @@ public class RecordingsActivity extends AppCompatActivity {
         }
 
     }
-
-
 
     //get the directory where voice notes are stored
     private File getVoiceNotesDir(){
