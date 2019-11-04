@@ -251,13 +251,16 @@ public class RecordingsActivity extends AppCompatActivity {
         seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int i, boolean b) {
-                if(mediaPlayer != null) mediaPlayer.seekTo(i);
-                //set the progress text
-                String progress = String.format(Locale.US,"%02d:%02d",
-                        TimeUnit.MILLISECONDS.toMinutes(i),
-                        TimeUnit.MILLISECONDS.toSeconds(i) - TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(i))
-                );
-                playbackProgressText.setText(progress);
+                //seek the mediaplayer only if the user was the one that changed the seekbar position
+                if(b) {
+                    if (mediaPlayer != null) mediaPlayer.seekTo(i);
+                    //set the progress text
+                    String progress = String.format(Locale.US, "%02d:%02d",
+                            TimeUnit.MILLISECONDS.toMinutes(i),
+                            TimeUnit.MILLISECONDS.toSeconds(i) - TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(i))
+                    );
+                    playbackProgressText.setText(progress);
+                }
             }
 
             @Override
@@ -493,6 +496,7 @@ public class RecordingsActivity extends AppCompatActivity {
                                     TimeUnit.MILLISECONDS.toMinutes(progress),
                                     TimeUnit.MILLISECONDS.toSeconds(progress) - TimeUnit.MINUTES.toSeconds(TimeUnit.MILLISECONDS.toMinutes(progress))
                             );
+                            playbackProgressText.setText(progressText);
                         }
                     });
                 }
