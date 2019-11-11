@@ -1,4 +1,4 @@
-package com.example.voicerecorder;
+package com.harshall.voicerecorder;
 
 //Java object to represent Recordings
 public class Recording {

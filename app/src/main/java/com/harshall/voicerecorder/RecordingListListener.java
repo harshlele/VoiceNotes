@@ -1,4 +1,4 @@
-package com.example.voicerecorder;
+package com.harshall.voicerecorder;
 
 //interface used when recording is clicked in RecordingsActivity
 public interface RecordingListListener {

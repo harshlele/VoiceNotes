@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    package="com.example.voicerecorder">
+    package="com.harshall.voicerecorder">
 
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
@@ -14,11 +14,11 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
         tools:ignore="GoogleAppIndexingWarning">
-        <activity android:name=".RecordingsActivity"
+        <activity android:name="com.harshall.voicerecorder.RecordingsActivity"
             android:theme="@style/AppTheme.Fullscreen.Recordings"
             />
         <activity
-            android:name=".MainActivity"
+            android:name="com.harshall.voicerecorder.MainActivity"
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:screenOrientation="portrait"
             android:theme="@style/AppTheme.Fullscreen">

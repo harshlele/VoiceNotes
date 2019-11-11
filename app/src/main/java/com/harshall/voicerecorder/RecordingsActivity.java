@@ -1,4 +1,4 @@
-package com.example.voicerecorder;
+package com.harshall.voicerecorder;
 
 import android.content.DialogInterface;
 import android.content.SharedPreferences;

@@ -23,7 +23,7 @@
  * http://soundfile.sapp.org/doc/WaveFormat/
  */
 
-package com.example.voicerecorder;
+package com.harshall.voicerecorder;
 
 
 import android.content.Context;

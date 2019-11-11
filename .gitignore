@@ -12,5 +12,6 @@
 .externalNativeBuild
 /build
 /app/build
+/app/release
 /models/build
 pocketsphinx-android-5prealpha-release/build
